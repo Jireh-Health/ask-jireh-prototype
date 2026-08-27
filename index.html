@@ -1,0 +1,2769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jireh Health — AI Assistant Prototype (v3 · nudges + user-initiated)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+  <script>
+    // Surface any error to the page so it's visible without opening DevTools.
+    window.addEventListener('error', (e) => {
+      const root = document.getElementById('root');
+      if (!root) return;
+      root.innerHTML = `
+        <div style="padding:24px;font-family:monospace;background:#fff1f2;color:#881337;border:1px solid #fecdd3;margin:24px;border-radius:8px;">
+          <div style="font-weight:bold;margin-bottom:8px;">Prototype error</div>
+          <div style="white-space:pre-wrap;">${(e.error && e.error.stack) || e.message}</div>
+        </div>`;
+    });
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 240ms ease-out both; }
+    @keyframes pulseDot { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+    .typing-dot { animation: pulseDot 1.1s ease-in-out infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: translateY(0); } }
+    .slide-down { animation: slideDown 340ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+    @keyframes pulseRing { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(1.5); opacity: 0; } }
+    .pulse-ring::before { content: ''; position: absolute; inset: 0; border-radius: 9999px; background: currentColor; animation: pulseRing 1.6s ease-out infinite; }
+    @keyframes softPop { 0% { transform: scale(0.9); opacity: 0; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+    .soft-pop { animation: softPop 380ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-white to-purple-50 min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CONFIG — edit anything below to customize the prototype
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const CONFIG = {
+      brand: {
+        name: 'jireh',
+        suffix: 'health',
+        // Real Jireh brand tokens — pulled from jireh-core-client & healthcare-portal.
+        color: '#B325FF',       // primary purple (from logo.svg)
+        colorLight: '#DFACFF',  // secondary purple (logo halo)
+        colorSoft: '#F5E6FF',   // pale-lavender for chip/pill backgrounds
+        colorText: '#8B00E6',   // darker purple for text on light bg
+
+        // Decorative teal — the custom `jh-teal` (#75d6d4) from tailwind.config.js.
+        // Only used in the app for the payment-point poster illustration, so we
+        // reserve it here for waves + welcome-burst halo only.
+        teal: '#75D6D4',
+
+        // Semantic paid/received teal — Tailwind teal-100 / teal-700, matching
+        // healthcare-portal's PaymentRequestStatusBadge (the ONLY place teal
+        // carries a status meaning in the app). Reuse these exact hex values so
+        // the future <PaidPill> can drop in `bg-teal-100 text-teal-700` classes.
+        paidBg: '#CCFBF1',      // Tailwind teal-100
+        paidText: '#0F766E',    // Tailwind teal-700
+
+        green: '#A8FF95',       // jh-green (reserved, unused in patient app)
+        tagline: 'Keeping life in motion',
+      },
+
+      user: {
+        name: 'Njeri',
+        // Shown as a chip inside the chat when a health topic activates it
+        savedContext: 'managing hypertension',
+        mpesaLast4: '7788',
+        openBill: {
+          provider: 'Kisima Hospital',
+          visitDate: '18 Jul',
+          balance: 4500,
+          dueInDays: 2,
+        },
+      },
+
+      // Shell strings that translate on the EN/SW toggle
+      strings: {
+        EN: {
+          tryAFlow: 'Try a flow',
+          tryAFlowSubtitle: "Flows are grouped by journey stage — payment first, then discovery, then how you give back, then learn. Tap any flow to play it as a guided chat.",
+          backToWelcome: 'Back to welcome screen',
+          footerPrinciple: 'Jireh explains & composes — but the moment money moves, you drop into a confirmation card. The assistant never touches the payment.',
+          disclaimer: 'General wellness guidance, not medical advice. For anything specific to your treatment, talk to a clinician.',
+          disclaimerFinancial: 'Approved on your Jireh standing. You can repay early any time with no penalty.',
+          disclaimerPrivacy: 'The recipient sees the provider and amount only. Treatment details stay private.',
+          messagePlaceholder: 'Message Jireh…',
+          typeHint: 'Type, tap a suggestion, or hold the mic — English or Kiswahili.',
+          savedContextLabel: 'Saved context',
+          stubTerminal: 'Happy to help with that — this branch would continue in the full product.',
+          footerCredit: 'jireh health — prototype for demonstration only. Bills, contacts, and M-Pesa flows are simulated. Brand-styled per the Jireh Health guidelines.',
+          welcomeGreeting: 'Hi {name}!',
+          welcomeSubtitle: 'Where shall we start?',
+          welcomePlaceholder: 'Ask Jireh anything…',
+          askJireh: 'Ask Jireh',
+          dashFindCare: 'Find care near me',
+          dashFilter: 'Filter',
+          dashChipCashback: 'Cashback',
+          dashChipLoans: 'Loans',
+          dashCardCashbackLabel: 'CASHBACK',
+          dashCardCashbackEarned: 'Cashback Earned',
+          dashCardLoansLabel: 'LOANS',
+          dashCardCreditAvailable: 'Available Credit',
+          dashActionRedeem: 'Redeem',
+          dashActionShare: 'Share',
+          dashActionRaise: 'Raise',
+          dashDiscountsHeading: 'Discounts & Offers',
+          dashSeeAll: 'See all',
+          dashDiscount1Title: '30% off consultation',
+          dashDiscount1Sub: 'up to KES 100',
+          dashDiscount2Title: '20% off vaccinations',
+          dashDiscount2Sub: 'up to KES 250',
+          dashDiscount3Title: 'Free BP check',
+          dashDiscount3Sub: 'this week only',
+          dashPayMedicalBill: 'Pay Medical Bill',
+          dashTabHome: 'Home',
+          dashTabCircle: 'Circle',
+          dashTabExplore: 'Explore',
+          dashTabProfile: 'Profile',
+        },
+        SW: {
+          tryAFlow: 'Jaribu mtiririko',
+          tryAFlowSubtitle: 'Ukurasa wa kuanza unaingiza kwenye msaidizi wa mazungumzo wa Jireh. Gonga kazi yoyote kuicheza kama mazungumzo yaliyoongozwa.',
+          backToWelcome: 'Rudi kwenye ukurasa wa kuanza',
+          footerPrinciple: 'Jireh anaeleza na kutayarisha — lakini pesa inapohamishwa, unaingia kwenye kadi ya uthibitisho. Msaidizi hagusi malipo kamwe.',
+          disclaimer: 'Ushauri wa kiafya wa jumla, si ushauri wa matibabu. Kwa jambo lolote mahsusi kwa matibabu yako, ongea na daktari.',
+          disclaimerFinancial: 'Imeidhinishwa kulingana na hali yako ya Jireh. Unaweza kulipa mapema wakati wowote bila adhabu.',
+          disclaimerPrivacy: 'Mpokeaji anaona jina la hospitali na kiasi tu. Maelezo ya matibabu yanabaki siri.',
+          messagePlaceholder: 'Andika kwa Jireh…',
+          typeHint: 'Andika, gonga pendekezo, au shikilia maikrofoni — Kiingereza au Kiswahili.',
+          savedContextLabel: 'Kumbukumbu iliyohifadhiwa',
+          stubTerminal: 'Nafurahi kusaidia — tawi hili litaendelea katika bidhaa kamili.',
+          footerCredit: 'jireh health — mfano wa maonyesho tu. Bili, waasiliani na M-Pesa vinaonyeshwa kama mifano.',
+          welcomeGreeting: 'Habari {name}!',
+          welcomeSubtitle: 'Tuanze na nini?',
+          welcomePlaceholder: 'Ulize Jireh chochote…',
+          askJireh: 'Muulize Jireh',
+          dashFindCare: 'Pata huduma karibu nawe',
+          dashFilter: 'Chuja',
+          dashChipCashback: 'Cashback',
+          dashChipLoans: 'Mikopo',
+          dashCardCashbackLabel: 'CASHBACK',
+          dashCardCashbackEarned: 'Cashback Iliyopatikana',
+          dashCardLoansLabel: 'MIKOPO',
+          dashCardCreditAvailable: 'Mkopo Uliopo',
+          dashActionRedeem: 'Tumia',
+          dashActionShare: 'Shiriki',
+          dashActionRaise: 'Omba',
+          dashDiscountsHeading: 'Punguzo na Matoleo',
+          dashSeeAll: 'Ona zote',
+          dashDiscount1Title: '30% off huduma',
+          dashDiscount1Sub: 'hadi KES 100',
+          dashDiscount2Title: '20% off chanjo',
+          dashDiscount2Sub: 'hadi KES 250',
+          dashDiscount3Title: 'BP check bila malipo',
+          dashDiscount3Sub: 'wiki hii tu',
+          dashPayMedicalBill: 'Lipa Bili ya Matibabu',
+          dashTabHome: 'Nyumbani',
+          dashTabCircle: 'Circle',
+          dashTabExplore: 'Gundua',
+          dashTabProfile: 'Wasifu',
+        },
+      },
+
+      // ─── Jobs list rendered in the right-hand panel ───────────────────────
+      // Each job has scripts. Wired jobs have `script`. Stubbed jobs use `stub`.
+      // Add a new job = append here. Delete = remove. Reorder = reorder.
+      // Ordered by user-journey stage: payment cluster → discovery cluster →
+      // social/give-back cluster → learn.
+      jobs: [
+        // ── Payment cluster ─────────────────────────────────────────────
+        {
+          id: 'pay-bill',
+          number: 1,
+          title: 'Pay a bill',
+          subtitle: 'Full / part / split',
+          welcomeChip: 'Pay a bill',
+        },
+        {
+          id: 'ask-someone',
+          number: 2,
+          title: 'Get help paying',
+          subtitle: 'Send a PayLink to family',
+          welcomeChip: 'Get help paying',
+        },
+        {
+          id: 'borrow',
+          number: 3,
+          title: 'Cover treatment costs',
+          subtitle: '0% interest, M-Pesa disbursal',
+          welcomeChip: 'Cover treatment costs',
+        },
+        // ── Discovery cluster ───────────────────────────────────────────
+        {
+          id: 'find-hospital',
+          number: 4,
+          title: 'Find care nearby',
+          subtitle: 'Partner-first search',
+          welcomeChip: 'Find care nearby',
+        },
+        {
+          id: 'health',
+          number: 5,
+          title: 'Ask a health question',
+          subtitle: 'Wellness only, not medical advice',
+          welcomeChip: 'Ask a health question',
+        },
+        // ── Social / give-back cluster ──────────────────────────────────
+        {
+          id: 'send-money',
+          number: 6,
+          title: 'Send cashback to family',
+          subtitle: 'To your Circle',
+          welcomeChip: 'Send cashback to family',
+        },
+        {
+          id: 'add-family',
+          number: 7,
+          title: 'Grow my Circle',
+          subtitle: '4 slots, shared cashback',
+          welcomeChip: 'Grow my Circle',
+        },
+        // ── Learn ──────────────────────────────────────────────────────
+        {
+          id: 'explainer',
+          number: 8,
+          title: 'What Jireh does for you',
+          subtitle: 'Personalised to your account',
+          welcomeChip: 'What Jireh does for you',
+        },
+      ],
+
+      // ─── Wired scripts, keyed by job id ───────────────────────────────────
+      // Each step: { role: 'ai'|'user', text, chips?, card?, disclaimer?,
+      //              savedContext?, terminal? }
+      // A step with `chips` waits for user tap; a step with `card` waits for
+      // confirm; otherwise auto-advances after ~700ms.
+      scripts: {
+        // ─── Health companion ──────────────────────────────────────────────
+        'health': [
+          { role: 'ai', text: "Hi Sheila — I can share general wellness guidance, and connect you to a Jireh partner doctor for anything specific to your treatment. What's on your mind?" },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'I have high blood pressure. Can I eat nyama choma?', SW: 'Nina shinikizo la juu. Naweza kula nyama choma?' }, next: 2 },
+              { label: { EN: 'Something else', SW: 'Kitu kingine' }, next: 'terminal' },
+            ],
+          },
+          { role: 'user', text: 'I have high blood pressure. Can I eat nyama choma?', savedContext: true },
+          {
+            role: 'ai',
+            text: 'Yes — you can enjoy **nyama choma** in moderation. Since you\'re managing high blood pressure:',
+            bullets: [
+              'Choose **leaner cuts** and trim visible fat.',
+              'Go easy on the **salt and kachumbari salt**.',
+              'Keep the portion to about the size of your palm, with ugali and plenty of veg.',
+              'Drink water rather than soda.',
+            ],
+            footer: 'Enjoy it as a treat, not an everyday meal.',
+            disclaimer: 'health',
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Talk to a Jireh partner doctor', SW: 'Ongea na daktari wa Jireh' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+        ],
+
+        // ─── How Jireh Health works ────────────────────────────────────────
+        'explainer': [
+          { role: 'ai', text: "Hi! I'm Jireh's assistant. I help you pay hospital bills with M-Pesa, share cashback with your Circle, take 0% treatment loans, and find partner facilities.\n\nWhat would you like to know?" },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'How does cashback work?', SW: 'Cashback inafanyaje kazi?' }, next: 2 },
+              { label: { EN: 'What is a Circle?', SW: 'Circle ni nini?' }, next: 5 },
+              { label: { EN: 'Is my data private?', SW: 'Data yangu ni siri?' }, next: 8 },
+            ],
+          },
+          { role: 'user', text: 'How does cashback work?' },
+          {
+            role: 'ai',
+            text: "Every M-Pesa payment to a Jireh **partner facility** earns **5% back as cashback**. Use it on your next bill, save it in your **Care Fund**, or **share it with your Circle**. Cashback expires 12 months after you earn it — so use it or share it.",
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Got it — back to home', SW: 'Nimeelewa — rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+          { role: 'user', text: 'What is a Circle?' },
+          {
+            role: 'ai',
+            text: "Your **Circle** is 4 slots for family — like a healthcare safety net. Members **share cashback**, **help pay each other's bills** via PayLinks, and can **grow the group's credit limit** together. Add anyone with a Safaricom number.",
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Got it — back to home', SW: 'Nimeelewa — rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+          { role: 'user', text: 'Is my data private?' },
+          {
+            role: 'ai',
+            text: "Yes. Health topics stay private. When you share a bill with someone via PayLink, they see the **provider and amount only** — no treatment details. Health context you share with me isn't tied to your bill or Circle members.",
+            disclaimer: 'privacy',
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Got it — back to home', SW: 'Nimeelewa — rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+        ],
+
+        // ─── Share cashback with your Circle ───────────────────────────────
+        //   Real Jireh flow (recent PR #713 on jireh-core-client): cmdk Circle
+        //   picker → fractional-safe amount → confirm → recipient's cashback
+        //   balance grows. Cashback moves inside Jireh — no STK, no M-Pesa PIN.
+        'send-money': [
+          { role: 'ai', text: 'You have **KES 850 in cashback**. Share some with your Circle — it lands in their cashback balance.' },
+          { role: 'ai', text: 'Who in your Circle should get some?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Mary — my sister', SW: 'Mary — dada yangu' }, next: 3 },
+              { label: { EN: 'Grace — my mother', SW: 'Grace — mama yangu' }, next: 'terminal' },
+              { label: { EN: 'Someone else', SW: 'Mtu mwingine' }, next: 'terminal' },
+            ],
+          },
+          { role: 'user', text: 'Mary — my sister' },
+          { role: 'ai', text: 'How much should Mary receive?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'KES 300', next: 6 },
+              { label: { EN: 'All KES 850', SW: 'Yote KES 850' }, next: 'terminal' },
+              {
+                label: { EN: 'A different amount', SW: 'Kiasi tofauti' },
+                next: 'amount-input',
+                hint: { EN: 'How much cashback should Mary receive?', SW: 'Mary apokee cashback kiasi gani?' },
+              },
+            ],
+          },
+          { role: 'user', text: 'KES 300' },
+          { role: 'ai', text: 'Please review before we send:' },
+          {
+            role: 'card',
+            card: {
+              title: { EN: 'Share cashback', SW: 'Shiriki cashback' },
+              icon: 'send',
+              rows: [
+                { label: 'To', value: 'Mary Njoroge (Circle)' },
+                { label: 'Amount', value: 'KES 300' },
+                { label: 'From', value: 'Your cashback balance' },
+                { label: 'Fee', value: 'KES 0 (inside Jireh)' },
+                { label: 'Your balance after', value: 'KES 550', bold: true },
+              ],
+              primary: { EN: 'Confirm & share', SW: 'Thibitisha & shiriki' },
+              secondary: { EN: 'Edit', SW: 'Hariri' },
+            },
+          },
+          { role: 'ai', text: 'Cashback moves inside Jireh — no M-Pesa PIN needed.' },
+          {
+            role: 'ai',
+            pill: { EN: 'Shared', SW: 'Imeshirikiwa' },
+            text: '**Mary now has KES 300 in her cashback**. Your balance: **KES 550**.',
+            simulateDelay: 1400,
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Share more', SW: 'Shiriki zaidi' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+        ],
+
+        // ─── Borrow for treatment ──────────────────────────────────────────
+        //   Real Jireh 0% treatment loan (Fast Track): credit line pre-approved
+        //   on Jireh standing; M-Pesa B2C disbursement — the user receives,
+        //   they don't authorise with a PIN. Repayment in equal instalments,
+        //   with cashback earned as you repay.
+        'borrow': [
+          { role: 'ai', text: "You have a **KES 12,000 pre-approved credit line** on your Jireh standing. 0% interest, repaid in 3 equal instalments." },
+          { role: 'ai', text: 'How much do you need for treatment?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'KES 5,000', next: 3 },
+              { label: 'KES 8,000', next: 'terminal' },
+              {
+                label: { EN: 'A different amount', SW: 'Kiasi tofauti' },
+                next: 'amount-input',
+                hint: { EN: 'How much do you need? (up to KES 12,000)', SW: 'Unahitaji kiasi gani? (hadi KES 12,000)' },
+              },
+            ],
+          },
+          { role: 'user', text: 'KES 5,000' },
+          { role: 'ai', text: "Here's your plan. **No interest, ever** — and you earn cashback on every repayment." },
+          {
+            role: 'card',
+            card: {
+              title: { EN: 'Treatment loan', SW: 'Mkopo wa matibabu' },
+              icon: 'wallet',
+              rows: [
+                { label: 'Amount', value: 'KES 5,000' },
+                { label: 'Interest', value: '0%' },
+                { label: 'Repayment', value: '3 × KES 1,667' },
+                { label: 'First due', value: '27 Sep 2026' },
+                { label: 'Disburse to', value: 'M-Pesa · · · 7788' },
+                { label: 'You receive', value: 'KES 5,000', bold: true },
+              ],
+              primary: { EN: 'Confirm & receive', SW: 'Thibitisha & pokea' },
+              secondary: { EN: 'Not now', SW: 'Baadaye' },
+            },
+          },
+          {
+            role: 'ai',
+            text: 'Approved on your Jireh standing. **Disbursing to your M-Pesa now — no PIN needed to receive.**',
+            disclaimer: 'financial',
+          },
+          {
+            role: 'ai',
+            pill: { EN: 'Disbursed', SW: 'Imetumwa' },
+            text: '**KES 5,000 in your M-Pesa · · · 7788.**\nFirst repayment of KES 1,667 due 27 Sep.',
+            simulateDelay: 1600,
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'See my repayment plan', SW: 'Ona mpango wa kulipa' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+        ],
+
+        // ─── Add to your Circle ────────────────────────────────────────────
+        //   Your Circle has 4 slots max. Members share cashback, help each
+        //   other's bills, and can grow the group's credit limit. Matches the
+        //   recent 4-slot avatar-chain redesign on jireh-core-client (commit
+        //   9891e3e9 on develop, 2026-08-25). Uses case/whitespace-insensitive
+        //   dedup — real dependency matching pattern.
+        'add-family': [
+          { role: 'ai', text: 'Your **Circle** is a family safety net. Members share cashback, help each other pay bills, and grow the group\'s credit limit together.' },
+          { role: 'ai', text: 'Your Circle: **1 of 4 slots filled** (you). Who would you like to add?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Add my mother', SW: 'Ongeza mama yangu' }, next: 3 },
+              { label: { EN: 'Add my child', SW: 'Ongeza mtoto wangu' }, next: 'terminal' },
+              { label: { EN: 'Add a sibling', SW: 'Ongeza kaka au dada' }, next: 'terminal' },
+            ],
+          },
+          { role: 'user', text: 'Add my mother' },
+          { role: 'ai', text: "What's her name and Safaricom number?" },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'Grace Wanjiru, 0722 123 456', next: 5 },
+            ],
+          },
+          { role: 'user', text: 'Grace Wanjiru, 0722 123 456' },
+          { role: 'ai', text: 'Thanks. What should Grace be able to do in your Circle?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'See bills & receive requests', SW: 'Ona bili na pokea maombi' }, next: 8 },
+              { label: { EN: 'Also pay on my behalf', SW: 'Alipe pia kwa niaba yangu' }, next: 'terminal' },
+              { label: { EN: 'Full access', SW: 'Ufikiaji kamili' }, next: 'terminal' },
+            ],
+          },
+          { role: 'user', text: 'See bills & receive requests' },
+          { role: 'ai', text: "Here's what I'll save to your Circle:" },
+          {
+            role: 'card',
+            card: {
+              title: { EN: 'New Circle member', SW: 'Mwanachama mpya wa Circle' },
+              icon: 'wallet',
+              rows: [
+                { label: 'Name', value: 'Grace Wanjiru' },
+                { label: 'Relationship', value: 'Mother' },
+                { label: 'Phone', value: '+254 722 123 456' },
+                { label: 'See bills', value: 'Yes' },
+                { label: 'Receive requests', value: 'Yes' },
+                { label: 'Pay on your behalf', value: 'No' },
+              ],
+              primary: { EN: 'Confirm — add to Circle', SW: 'Thibitisha — ongeza kwenye Circle' },
+              secondary: { EN: 'Change', SW: 'Badilisha' },
+            },
+          },
+          { role: 'ai', text: "I'll send Grace an SMS invite. She joins your Circle once she opens it." },
+          {
+            role: 'ai',
+            pill: { EN: 'Added', SW: 'Imeongezwa' },
+            text: '**Grace is in your Circle.** Slots: **2 of 4 filled**. You can now share bills and cashback with her.',
+            simulateDelay: 1200,
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Add another member', SW: 'Ongeza mwanachama mwingine' }, next: 'terminal' },
+              { label: { EN: 'Share cashback with Grace', SW: 'Shiriki cashback na Grace' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+        ],
+
+        // ─── Find a hospital ───────────────────────────────────────────────
+        //   Two entry paths — matches how patients discover care in Jireh:
+        //   1) Search by service near me → partner-first list with payment
+        //      point codes visible (so a patient can walk in and pay directly)
+        //   2) Enter a payment point code the nurse gave them (the 4–6 letter
+        //      code on the facility's Jireh payment poster — see recent
+        //      PaymentPointPosterGenerator work)
+        'find-hospital': [
+          { role: 'ai', text: 'I can find care two ways — search by what you need, or enter a **payment point code** if you already know where.' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Search near me', SW: 'Tafuta karibu nami' }, next: 2 },
+              { label: { EN: 'Enter payment point code', SW: 'Ingiza msimbo wa malipo' }, next: 9 },
+            ],
+          },
+          { role: 'user', text: 'Search near me' },
+          { role: 'ai', text: 'What kind of care are you looking for?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Physiotherapy', SW: 'Tiba ya viungo' }, next: 5 },
+              { label: { EN: 'GP visit', SW: 'Ziara ya daktari' }, next: 'terminal' },
+              { label: { EN: 'Dental', SW: 'Meno' }, next: 'terminal' },
+            ],
+          },
+          { role: 'user', text: 'Physiotherapy near me' },
+          { role: 'ai', text: 'Options near **Kilimani**. Jireh partners let you pay instantly, earn 5% cashback, and use credit.' },
+          {
+            role: 'hospitals',
+            hospitals: [
+              {
+                name: 'Kisima Hospital — Physio Unit',
+                distance: '1.2 km',
+                specialties: { EN: 'Physiotherapy, sports injury, post-op rehab', SW: 'Tiba ya viungo, majeraha ya michezo' },
+                partner: true,
+                paymentPointCode: 'KISIMA',
+              },
+              {
+                name: 'Uzima Rehab Centre',
+                distance: '2.4 km',
+                specialties: { EN: 'Physiotherapy, occupational therapy', SW: 'Tiba ya viungo na kazi' },
+                partner: true,
+                paymentPointCode: 'UZIMA',
+              },
+              {
+                name: 'Kilimani Medical Plaza',
+                distance: '0.8 km',
+                specialties: { EN: 'Visiting physio (Tue/Thu) — not a Jireh partner', SW: 'Daktari wa viungo (Jumanne/Alhamisi) — si mshirika' },
+                partner: false,
+              },
+            ],
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Start payment at Kisima', SW: 'Anza malipo Kisima' }, next: 'terminal' },
+              { label: { EN: 'Get estimate — Uzima', SW: 'Pata makadirio — Uzima' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+          { role: 'user', text: 'Enter payment point code' },
+          { role: 'ai', text: "Look at the payment point poster at reception — it's the 4–6 letter code above the M-Pesa till. What's the code?" },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'KISIMA', next: 11 },
+              { label: { EN: 'I don\'t see one', SW: 'Sijaona' }, next: 'terminal' },
+            ],
+          },
+          { role: 'user', text: 'KISIMA' },
+          { role: 'ai', text: 'Matched **Kisima Hospital — Physio Unit** (Jireh Partner, 1.2 km). Ready to start a payment?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Start payment', SW: 'Anza malipo' }, next: 'terminal' },
+              { label: { EN: 'Get an estimate first', SW: 'Pata makadirio kwanza' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+        ],
+
+        // ─── Ask someone to pay (PayLink share) ────────────────────────────
+        //   Real Jireh flow: this generates a tokenized PayLink (/t/:token).
+        //   The recipient can pay by M-Pesa STK without a Jireh account. Once
+        //   they pay, our webhook (markPaymentLinkPaidIfLinked) settles the
+        //   bill and we notify the sender.
+        'ask-someone': [
+          { role: 'ai', text: "I'll send a **PayLink** on WhatsApp. The recipient pays with M-Pesa directly — **no Jireh account needed on their side**." },
+          { role: 'ai', text: 'Who would you like to ask?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'David — my brother', SW: 'David — kaka yangu' }, next: 3 },
+              { label: { EN: 'Someone else', SW: 'Mtu mwingine' }, next: 'terminal' },
+            ],
+          },
+          { role: 'user', text: 'David — my brother' },
+          { role: 'ai', text: 'Which bill would you like David to help with?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Kisima Hospital — KES 4,500', SW: 'Kisima Hospital — KES 4,500' }, next: 6 },
+            ],
+          },
+          { role: 'user', text: 'Kisima Hospital — KES 4,500' },
+          { role: 'ai', text: 'How much should I ask David to send?' },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'KES 2,250', next: 9 },
+              { label: 'KES 4,500', next: 9 },
+              {
+                label: { EN: 'A different amount', SW: 'Kiasi tofauti' },
+                next: 'amount-input',
+                hint: { EN: 'How much should I ask David to send?', SW: 'David atume kiasi gani?' },
+              },
+            ],
+          },
+          { role: 'user', text: 'KES 2,250' },
+          { role: 'ai', text: 'Please review before we send. David sees the provider and amount only.', disclaimer: 'privacy' },
+          {
+            role: 'card',
+            card: {
+              title: { EN: 'Send request', SW: 'Tuma ombi' },
+              icon: 'send',
+              rows: [
+                { label: 'Send via', value: 'WhatsApp' },
+                { label: 'To', value: 'David Ochieng' },
+                { label: 'For', value: 'Kisima Hospital' },
+                { label: 'Requested', value: 'KES 2,250', bold: true },
+              ],
+              primary: { EN: 'Send request', SW: 'Tuma ombi' },
+              secondary: { EN: 'Edit', SW: 'Hariri' },
+            },
+          },
+          { role: 'ai', text: '**PayLink sent to David on WhatsApp.** He can pay with M-Pesa directly. I\'ll notify you the moment his payment settles.' },
+          {
+            role: 'ai',
+            pill: { EN: 'Paid by David', SW: 'David amelipa' },
+            text: '**KES 2,250** toward your bill via M-Pesa. Remaining balance: **KES 2,250**.',
+            simulateDelay: 1400,
+          },
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Pay the rest now', SW: 'Lipa iliyobaki sasa' }, next: 'terminal' },
+              { label: { EN: 'Ask someone else too', SW: 'Muombe mtu mwingine pia' }, next: 'terminal' },
+            ],
+          },
+        ],
+
+        // ─── Pay a hospital bill ───────────────────────────────────────────
+        //   Two real Jireh entry points:
+        //   1) Pay an open payment request — a PayLink created by a nurse.
+        //      Comes with a bill amount, provider, and due date (see
+        //      healthcare-portal's PaymentRequests + markPaymentLinkPaidIfLinked).
+        //   2) Start a new payment — patient walks into a facility that isn't
+        //      integrated, enters the payment point code from the payment
+        //      poster (see PaymentPointPosterGenerator), types the amount.
+        'pay-bill': [
+          // 0
+          { role: 'ai', text: 'How would you like to pay?' },
+          // 1
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Pay an open payment request', SW: 'Lipa ombi lililopo' }, next: 2 },
+              { label: { EN: 'Start a new payment', SW: 'Anza malipo mapya' }, next: 20 },
+              { label: { EN: 'Cancel', SW: 'Ghairi' }, next: 'restart' },
+            ],
+          },
+
+          // ── Branch A: Pay an open payment request (nurse PayLink) ───────
+          // 2
+          { role: 'user', text: 'Pay an open payment request' },
+          // 3
+          { role: 'ai', text: 'You have one open payment request from a nurse:' },
+          // 4
+          { role: 'ai', text: '**Kisima Hospital** — visit 18 Jul\nSent by Nurse M. Otieno\nBalance **KES 4,500**, due in 2 days.' },
+          // 5
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Pay now', SW: 'Lipa sasa' }, next: 6 },
+              {
+                label: { EN: 'Pay part', SW: 'Lipa sehemu' },
+                next: 'amount-input',
+                hint: { EN: 'How much would you like to pay now?', SW: 'Ungependa kulipa kiasi gani sasa?' },
+              },
+              { label: { EN: 'Cancel', SW: 'Ghairi' }, next: 'restart' },
+            ],
+          },
+          // 6
+          { role: 'user', text: 'Pay now' },
+          // 7
+          {
+            role: 'ai',
+            text: "You have **KES 850 cashback** and **KES 1,200 in Care Fund** available. I can combine them with M-Pesa so you pay less out of pocket.",
+          },
+          // 8
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Yes, combine sources', SW: 'Ndio, changanya' }, next: 9 },
+              { label: { EN: 'M-Pesa only', SW: 'M-Pesa tu' }, next: 'terminal' },
+            ],
+          },
+          // 9
+          { role: 'user', text: 'Yes, combine sources' },
+          // 10
+          {
+            role: 'ai',
+            text: "Here's the split I've prepared:",
+            bullets: [
+              'Cashback: **KES 850**',
+              'Care Fund: **KES 1,200**',
+              'M-Pesa · · · 7788: **KES 2,450**',
+            ],
+          },
+          // 11
+          { role: 'ai', text: 'Any discount code to apply?' },
+          // 12
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Use SIS10 (saved, -10%)', SW: 'Tumia SIS10 (imehifadhiwa, -10%)' }, next: 13 },
+              { label: { EN: 'Enter a different code', SW: 'Ingiza msimbo mwingine' }, next: 'terminal' },
+              { label: { EN: 'No discount', SW: 'Hakuna punguzo' }, next: 'terminal' },
+            ],
+          },
+          // 13
+          { role: 'user', text: 'Use SIS10' },
+          // 14
+          {
+            role: 'ai',
+            text: "**SIS10 applied: -KES 450.**\nNew M-Pesa charge: **KES 2,000** (Cashback + Care Fund cover the rest).",
+          },
+          // 15
+          { role: 'ai', text: 'Please review before we send:' },
+          // 16
+          {
+            role: 'card',
+            card: {
+              title: { EN: 'Payment confirmation', SW: 'Uthibitisho wa malipo' },
+              icon: 'wallet',
+              rows: [
+                { label: 'Provider', value: 'Kisima Hospital' },
+                { label: 'Bill amount', value: 'KES 4,500' },
+                { label: 'Discount (SIS10)', value: '- KES 450' },
+                { label: 'Cashback applied', value: '- KES 850' },
+                { label: 'Care Fund applied', value: '- KES 1,200' },
+                { label: 'M-Pesa · · · 7788', value: 'KES 2,000', bold: true },
+              ],
+              primary: { EN: 'Confirm — send M-Pesa', SW: 'Thibitisha — tuma M-Pesa' },
+              secondary: { EN: 'Edit', SW: 'Hariri' },
+            },
+          },
+          // 17
+          {
+            role: 'ai',
+            text: '**M-Pesa PIN prompt sent to 254 · · · 7788.**\nPlease enter your PIN on your phone to authorise KES 2,000.',
+          },
+          // 18
+          {
+            role: 'ai',
+            pill: { EN: 'Paid', SW: 'Imelipwa' },
+            text: '**KES 4,500 to Kisima Hospital** — settled from M-Pesa, Cashback, and Care Fund.\nYou earned **KES 100 new cashback** (5% of M-Pesa portion).',
+            simulateDelay: 1600,
+          },
+          // 19
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Share this cashback', SW: 'Shiriki cashback hii' }, next: 'terminal' },
+              { label: { EN: 'View receipt', SW: 'Ona risiti' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+
+          // ── Branch B: Start a new payment (payment point code) ──────────
+          // 20
+          { role: 'user', text: 'Start a new payment' },
+          // 21
+          { role: 'ai', text: "Which facility? Enter the **payment point code** — the 4–6 letter code on the facility's payment poster or M-Pesa till." },
+          // 22
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'KISIMA', next: 23 },
+              { label: 'UZIMA', next: 'terminal' },
+              { label: { EN: 'I don\'t have a code', SW: 'Sina msimbo' }, next: 'terminal' },
+            ],
+          },
+          // 23
+          { role: 'user', text: 'KISIMA' },
+          // 24
+          { role: 'ai', text: 'Matched **Kisima Hospital — Physio Unit** (Jireh Partner).\nHow much are you paying?' },
+          // 25
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'KES 2,000', next: 26 },
+              {
+                label: { EN: 'A different amount', SW: 'Kiasi tofauti' },
+                next: 'amount-input',
+                hint: { EN: 'How much are you paying at Kisima?', SW: 'Unalipa kiasi gani Kisima?' },
+              },
+            ],
+          },
+          // 26
+          { role: 'user', text: 'KES 2,000' },
+          // 27
+          { role: 'ai', text: 'Which source would you like to use?' },
+          // 28
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: 'M-Pesa · · · 7788', next: 29 },
+              { label: { EN: 'Combine with cashback (KES 850)', SW: 'Changanya na cashback' }, next: 'terminal' },
+              { label: { EN: 'Use my Care Fund', SW: 'Tumia Care Fund' }, next: 'terminal' },
+            ],
+          },
+          // 29
+          { role: 'user', text: 'M-Pesa · · · 7788' },
+          // 30
+          { role: 'ai', text: 'Please review before we send:' },
+          // 31
+          {
+            role: 'card',
+            card: {
+              title: { EN: 'New payment confirmation', SW: 'Uthibitisho wa malipo mapya' },
+              icon: 'wallet',
+              rows: [
+                { label: 'Provider', value: 'Kisima Hospital' },
+                { label: 'Payment point', value: 'KISIMA' },
+                { label: 'Amount', value: 'KES 2,000' },
+                { label: 'Transaction fee', value: 'KES 0' },
+                { label: 'Pay with', value: 'M-Pesa · · · 7788', bold: true },
+              ],
+              primary: { EN: 'Confirm — send M-Pesa', SW: 'Thibitisha — tuma M-Pesa' },
+              secondary: { EN: 'Edit', SW: 'Hariri' },
+            },
+          },
+          // 32
+          { role: 'ai', text: '**M-Pesa PIN prompt sent to 254 · · · 7788.**\nEnter your PIN on your phone to authorise KES 2,000.' },
+          // 33
+          {
+            role: 'ai',
+            pill: { EN: 'Paid', SW: 'Imelipwa' },
+            text: '**KES 2,000 to Kisima Hospital.**\nYou earned **KES 100 in cashback**.',
+            simulateDelay: 1500,
+          },
+          // 34
+          {
+            role: 'ai-chips',
+            chips: [
+              { label: { EN: 'Share this cashback', SW: 'Shiriki cashback hii' }, next: 'terminal' },
+              { label: { EN: 'View receipt', SW: 'Ona risiti' }, next: 'terminal' },
+              { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
+            ],
+          },
+        ],
+      },
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Helpers
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Pick a string that may be a plain string or a {EN, SW} object. */
+    const t = (val, lang) => {
+      if (val == null) return '';
+      if (typeof val === 'string') return val;
+      return val[lang] ?? val.EN ?? '';
+    };
+
+    /** Render **bold** and line breaks in a plain string. */
+    const renderRich = (str) => {
+      if (!str) return null;
+      return str.split('\n').map((line, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <br />}
+          {line.split(/(\*\*[^*]+\*\*)/g).map((chunk, j) =>
+            chunk.startsWith('**') && chunk.endsWith('**')
+              ? <span key={j} className="font-semibold text-gray-900">{chunk.slice(2, -2)}</span>
+              : <span key={j}>{chunk}</span>
+          )}
+        </React.Fragment>
+      ));
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Icons (inline SVG)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const Sparkle = ({ size = 20, className = '' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M12 2l1.5 5.5L19 9l-5.5 1.5L12 16l-1.5-5.5L5 9l5.5-1.5L12 2z" fill="currentColor" />
+        <path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15z" fill="currentColor" opacity="0.6" />
+      </svg>
+    );
+
+    /** Real Jireh burst mark — extracted from jireh-core-client/src/assets/icons/logo.svg */
+    const JirehBurst = ({ size = 24, className = '', color, colorLight }) => (
+      <svg width={size} height={size} viewBox="0 0 22 22" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+        <path d="M13.0863 0.0129242C13.6341 0.190327 15.6022 1.32376 16.2252 1.67198C16.1592 3.38059 16.1025 5.08956 16.0554 6.79882C16.7598 5.57071 17.4826 4.26487 18.2298 3.06911C18.6908 3.79229 19.269 4.91974 19.6747 5.69234C18.9661 6.95812 18.0598 8.37673 17.4243 9.657C18.2756 9.06777 20.2907 7.95141 21.2296 7.44836C21.3185 8.31592 21.3015 10.0466 21.3328 11.0008C20.3982 11.6208 17.8624 12.8844 16.7815 13.4602L21.1362 13.4616C20.6218 14.325 20.1004 15.1842 19.572 16.039C18.0318 16.0454 16.4915 16.0421 14.9514 16.029C15.9646 16.5253 17.8447 17.6425 18.8067 18.2529C17.9057 18.8713 16.726 19.5477 15.7768 20.1248C14.3501 19.2969 12.7791 18.2842 11.377 17.4009C12.1198 18.6507 12.8486 19.9089 13.5633 21.1751C12.5631 21.1669 11.5628 21.153 10.5628 21.1335C9.79227 19.8224 9.03561 18.5032 8.29285 17.1761C8.27779 17.9598 8.39431 21.0647 8.18837 21.5593C7.16841 21.0053 6.11718 20.4487 5.11668 19.8651C5.15789 18.1697 5.21165 16.4745 5.2778 14.7799C4.56818 15.7999 3.8139 17.3558 3.08721 18.4858L1.6458 15.8671C2.12086 14.9085 3.36621 12.832 3.95218 11.9008C2.72772 12.5496 1.32169 13.4088 0.105332 14.1125C0.0239299 12.9385 0.0203487 11.7017 0 10.5202C1.47798 9.71133 3.04434 8.84182 4.54433 8.08874C3.09723 8.10784 1.64997 8.10452 0.203033 8.07873C0.674901 7.23552 1.23788 6.35009 1.74624 5.52035L6.30784 5.5215C5.29538 4.78435 3.60962 4.07775 2.54636 3.26783C3.20582 2.77327 4.81195 1.85924 5.55874 1.41389C6.97083 2.24003 8.46975 3.20659 9.87024 4.07264C9.47284 3.17092 8.30301 1.37081 7.76158 0.342499C8.75387 0.354027 9.76366 0.387242 10.7573 0.410227C11.5277 1.72162 12.2905 3.03756 13.0455 4.35781C13.0442 3.22222 12.9811 1.07785 13.0863 0.0129242Z" fill={colorLight || CONFIG.brand.colorLight} />
+        <path d="M13.3776 0.577689C13.6696 0.654712 15.5173 1.69974 15.8696 1.89406C15.7905 2.88072 15.7772 4.33132 15.7471 5.32209C15.7262 6.01226 15.4462 10.6682 15.7164 10.9268C15.9991 10.9356 20.3082 8.3761 20.8952 8.0652C20.9021 8.97362 20.8969 9.89543 20.9619 10.8008C18.5545 12.0991 15.184 13.7891 12.895 15.1796C13.33 15.523 14.3692 16.092 14.8702 16.3817C15.9571 17.0212 17.0529 17.6454 18.1573 18.2541C17.3626 18.7255 16.5741 19.2071 15.7918 19.6989C13.1907 18.1784 10.5578 16.4389 7.94849 14.8768C7.83738 16.6042 7.90936 19.13 7.92522 20.908C7.69723 20.9295 5.82513 19.8479 5.48798 19.6615C5.57957 16.6046 5.71481 13.5161 5.71611 10.4612C4.13909 11.2616 2.02121 12.5778 0.415381 13.4942C0.385441 12.5887 0.388489 11.6319 0.376795 10.7221C1.91752 9.95444 3.57222 8.97693 5.11884 8.1763C5.91247 7.76554 7.78809 6.79041 8.41621 6.33022C7.11256 5.43938 4.63311 4.10212 3.20279 3.27577C3.97999 2.79181 4.76158 2.31512 5.54764 1.84571C8.13713 3.3332 10.7429 5.1506 13.3553 6.63081C13.4908 5.29535 13.3951 2.04616 13.3776 0.577689Z" fill={color || CONFIG.brand.color} />
+      </svg>
+    );
+
+    /** "jireh health" wordmark from the same logo.svg — used on welcome screen. */
+    const JirehWordmark = ({ height = 22 }) => (
+      <svg height={height} viewBox="30 0 108 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fillRule="evenodd" clipRule="evenodd" d="M92.4458 5.75668C95.31 5.759 97.7635 7.70549 98.3385 10.5275C98.5114 11.376 98.5107 12.0147 98.5013 12.8702L87.8298 12.8731C88.2895 16.3105 90.9167 18.0462 94.3394 16.9126C95.1118 16.6567 95.7329 16.0697 96.251 15.4546C96.5904 14.9661 96.7727 14.5247 96.9579 13.9678L98.4358 13.9736C97.6597 16.6583 96.1033 18.3629 93.1959 18.7313C87.2318 19.4871 84.3142 12.4312 87.6936 8.03058C88.7715 6.62662 90.2365 5.97812 91.9997 5.77399C92.1474 5.75093 92.2981 5.75682 92.4458 5.75668ZM97.0105 11.4963C96.6012 8.68194 94.7213 7.04699 91.852 7.27869C89.5153 7.61705 88.2175 9.23053 87.9171 11.4969L93.2197 11.4993L97.0105 11.4963Z" fill={CONFIG.brand.colorLight} />
+        <path fillRule="evenodd" clipRule="evenodd" d="M105.12 5.7754C107.47 5.46244 110.069 7.15246 111.03 9.24977C111.846 11.0315 111.728 12.5931 111.727 14.4875L111.72 18.5377L110.28 18.5344C110.273 17.6144 110.275 16.6943 110.286 15.7744C109.619 16.8497 109.105 17.5307 107.975 18.1471C107.276 18.477 106.665 18.6551 105.89 18.743C104.319 18.9165 102.743 18.4617 101.505 17.4778C98.7443 15.2787 98.2803 10.8364 100.502 8.0858C101.706 6.59503 103.256 5.97866 105.12 5.7754ZM110.231 11.5785C109.85 8.91683 107.384 7.06708 104.723 7.44635C102.058 7.82589 100.207 10.2938 100.587 12.9575C100.969 15.6212 103.438 17.4713 106.101 17.089C108.763 16.7069 110.612 14.2403 110.231 11.5785Z" fill={CONFIG.brand.colorLight} />
+        <path d="M118.903 1.46285L118.906 6.00782L123.604 6.00841L123.607 7.43493L118.906 7.43164C118.9 9.39423 118.589 14.3515 119.469 15.8542C119.872 16.5422 120.432 16.849 121.18 17.0441C121.918 17.1733 123.301 17.1319 124.087 17.1303L124.089 18.5368C122.405 18.5456 120.122 18.7828 118.813 17.5374C117.915 16.6833 117.426 15.1988 117.412 13.6262C117.377 9.74151 117.383 5.48095 117.405 1.56199C117.444 1.52013 117.475 1.48561 117.501 1.45838L118.903 1.46285Z" fill={CONFIG.brand.colorLight} />
+        <path d="M75.5688 1.46733C75.5731 3.63425 75.6285 6.05698 75.5442 8.2033C75.782 7.85293 75.9874 7.54327 76.2871 7.2429C77.2433 6.28946 78.5403 5.75631 79.8907 5.76163C81.1531 5.76343 82.4444 6.17732 83.3408 7.09114C85.1695 8.9563 84.8835 11.6796 84.8799 14.0884L84.8699 18.5369L83.3703 18.5314C83.3545 16.102 83.3868 13.6726 83.3558 11.2409C83.2787 10.1632 83.033 9.0647 82.2563 8.28937C80.3568 6.3929 76.2583 7.26615 75.7236 10.0736C75.4873 11.3146 75.5651 12.5889 75.568 13.8295C75.5759 15.3985 75.5752 16.9676 75.5659 18.5367L74.1204 18.5355C74.0735 16.6769 74.1139 14.6269 74.1132 12.7574V1.46014L75.5688 1.46733Z" fill={CONFIG.brand.colorLight} />
+        <path d="M127.096 1.46532C127.119 3.46444 127.173 6.23968 127.069 8.19117C127.302 7.84295 127.502 7.54879 127.798 7.2495C128.755 6.2906 130.056 5.75498 131.412 5.7621C132.655 5.76001 133.961 6.17945 134.844 7.07783C136.685 8.95042 136.407 11.6821 136.404 14.0948L136.397 18.5336L134.89 18.5368C134.826 16.1774 134.909 13.703 134.867 11.3162C134.798 10.1643 134.587 9.11811 133.738 8.25711C132.351 6.84889 129.527 7.02728 128.161 8.40004C127.707 8.86217 127.386 9.43833 127.233 10.0675C127.032 10.899 127.095 12.739 127.096 13.6557L127.098 18.533L125.633 18.5328L125.63 1.45897L127.096 1.46532Z" fill={CONFIG.brand.colorLight} />
+        <path d="M115.154 1.46426L115.149 18.5342L113.674 18.5353C113.595 12.9083 113.669 7.09884 113.669 1.45885L115.154 1.46426Z" fill={CONFIG.brand.colorLight} />
+        <path d="M32.86 6.00592L32.8647 15.2507C32.865 17.0737 32.9469 18.9635 32.7424 20.7704C32.4893 23.0066 31.5831 23.731 29.4319 23.9471C28.6698 24.0079 27.82 23.9829 27.0494 23.977L27.0489 21.6041C30.0935 21.6288 30.3648 21.5008 30.3945 18.2843C30.4049 17.1638 30.3959 15.9669 30.3952 14.8411L30.3895 5.9985L32.86 6.00592Z" fill={CONFIG.brand.color} />
+        <path fillRule="evenodd" clipRule="evenodd" d="M52.3327 5.75502C54.9497 5.8046 57.1921 7.37498 57.9978 9.88802C58.346 10.9744 58.3233 11.7507 58.312 12.8685L48.4693 12.8758C49.0087 17.192 54.4304 17.525 55.9838 13.9413C56.0431 13.8047 56.2751 13.8289 56.4168 13.8207L58.2908 13.8264C57.6089 16.5655 55.9433 18.419 53.0357 18.7254C44.5848 19.6161 43.208 6.83879 51.7937 5.77292C51.9381 5.74928 52.1828 5.75279 52.3327 5.75502ZM53.7502 8.34658C53.1421 8.09311 52.4794 7.99911 51.8248 8.07354C50.7454 8.27016 49.9009 8.65101 49.2462 9.59131C49.0067 9.93146 48.8297 10.3117 48.7237 10.7141L52.868 10.7176L55.8716 10.7154C55.4279 9.63134 54.8839 8.82744 53.7502 8.34658Z" fill={CONFIG.brand.color} />
+        <path d="M45.3846 5.99921C45.5784 5.99056 45.6315 5.9813 45.8053 6.06149C46.0319 6.43193 45.9235 7.83627 45.9154 8.39026L45.4112 8.38661C44.424 8.38142 42.8173 8.33811 42.0884 9.08209C41.0035 10.1894 41.2279 12.6056 41.2311 14.0463L41.2341 18.5341L39.3395 18.542C39.1492 18.5507 39.0209 18.5765 38.8693 18.4591C38.773 18.272 38.7079 17.9691 38.7253 17.7664C38.8181 16.6804 38.7497 15.6206 38.7699 14.5428C38.8123 12.2835 38.4169 9.09674 40.1585 7.3359C41.5714 5.90744 43.5628 6.00094 45.3846 5.99921Z" fill={CONFIG.brand.color} />
+        <path d="M59.6215 1.46119C60.4326 1.45233 61.2439 1.45278 62.0549 1.46272L62.0586 7.80368C63.7522 5.38495 67.2584 5.04665 69.4136 7.07593C71.1718 8.73179 70.8728 11.7857 70.8677 14.0196L70.8605 18.5377C70.0492 18.5403 69.2386 18.5386 68.4272 18.5328C68.3876 16.6083 68.4222 14.5624 68.4214 12.6282L68.4222 12.5596C68.4344 11.2426 68.4769 10.0338 67.4753 9.00921C66.2979 7.80376 64.0347 8.03772 62.903 9.1658C62.5506 9.51064 62.3031 9.94826 62.189 10.428C61.9851 11.2878 62.0501 12.9514 62.0515 13.9013L62.054 18.5335C61.2434 18.541 60.4328 18.5409 59.6222 18.533C59.527 12.9545 59.6072 7.06152 59.6215 1.46119Z" fill={CONFIG.brand.color} />
+        <path d="M36.9276 6.00757L36.9269 18.533C36.1147 18.5392 35.3024 18.5396 34.4902 18.5343L34.4807 10.262C34.4799 9.0989 34.4178 7.05232 34.5067 5.99909L36.9276 6.00757Z" fill={CONFIG.brand.color} />
+        <path d="M35.3946 1.36983C36.1372 1.19323 36.8842 1.64555 37.0719 2.38544C37.2595 3.12532 36.8184 3.87876 36.0813 4.07747C35.5947 4.20859 35.0751 4.0675 34.7217 3.70812C34.3683 3.34874 34.2359 2.82686 34.3753 2.34247C34.5147 1.85816 34.9042 1.48641 35.3946 1.36983Z" fill={CONFIG.brand.color} />
+        <path d="M31.3364 1.37112C31.7564 1.27169 32.1987 1.37205 32.5344 1.6431C32.8702 1.91415 33.0615 2.32535 33.0527 2.75679C33.0404 3.36712 32.6325 3.89858 32.0461 4.06841C31.5595 4.20925 31.0347 4.07535 30.6752 3.71849C30.3157 3.36162 30.1781 2.8378 30.3154 2.35024C30.4528 1.86277 30.8436 1.48792 31.3364 1.37112Z" fill={CONFIG.brand.color} />
+      </svg>
+    );
+
+    // ─── Dashboard icons ──────────────────────────────────────────────────
+    const BellIcon = ({ size = 20 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+    );
+
+    const ChevronRight = ({ size = 16 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    );
+
+    const CloseXIcon = ({ size = 18 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+
+    const QuickPayIcon = () => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <rect x="2" y="6" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+      </svg>
+    );
+    const QuickCircleIcon = () => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="9" cy="8" r="3" /><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2" />
+        <circle cx="17" cy="8" r="2.2" /><path d="M22 21v-1.5a3.5 3.5 0 0 0-3.5-3.5" />
+      </svg>
+    );
+    const QuickCashbackIcon = () => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="12" r="9" /><line x1="7" y1="17" x2="17" y2="7" />
+        <circle cx="8.5" cy="8.5" r="1.5" /><circle cx="15.5" cy="15.5" r="1.5" />
+      </svg>
+    );
+    const QuickLoanIcon = () => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <ellipse cx="12" cy="6" rx="8" ry="3" /><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6" />
+        <path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
+      </svg>
+    );
+
+    // Bottom tab icons
+    const TabHomeIcon = ({ active }) => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+        <path d="M3 12l9-9 9 9v9a2 2 0 0 1-2 2h-4v-6h-6v6H5a2 2 0 0 1-2-2z" />
+      </svg>
+    );
+    const TabCashbackIcon = () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="12" r="9" /><line x1="8" y1="16" x2="16" y2="8" />
+        <circle cx="9.5" cy="9.5" r="1.5" /><circle cx="14.5" cy="14.5" r="1.5" />
+      </svg>
+    );
+    const TabLoansIcon = () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M8 12h8" /><path d="M12 8v8" /><circle cx="12" cy="12" r="9" />
+      </svg>
+    );
+    const TabNetworkIcon = () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="8" r="3" /><circle cx="5" cy="17" r="2.5" /><circle cx="19" cy="17" r="2.5" />
+        <line x1="10" y1="10" x2="6" y2="15" /><line x1="14" y1="10" x2="18" y2="15" />
+      </svg>
+    );
+
+    // ─── Dashboard-specific small icons ───────────────────────────────────
+    const WhatsAppIcon = () => (
+      <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#25D366' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+          <path d="M17.5 14.4c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-1 1.2c-.2.2-.4.2-.7 0-.3-.2-1.3-.5-2.5-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.4-.5.1-.2.2-.3.3-.5.1-.2.1-.4 0-.5-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5H8.3c-.2 0-.5.1-.7.4s-.9.9-.9 2.2c0 1.3.9 2.5 1.1 2.7.1.2 1.9 2.9 4.6 4 .6.3 1.1.4 1.5.6.6.2 1.2.2 1.6.1.5-.1 1.4-.6 1.6-1.1s.2-1 .1-1.1c-.1-.1-.3-.2-.6-.4zM12 2C6.5 2 2 6.5 2 12c0 1.7.5 3.4 1.3 4.9L2 22l5.3-1.4c1.4.8 3 1.2 4.7 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2z"/>
+        </svg>
+      </div>
+    );
+    const SearchIcon = ({ size = 18 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="16.5" y1="16.5" x2="21" y2="21" strokeLinecap="round" />
+      </svg>
+    );
+    const FilterIcon = ({ size = 14 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <line x1="4" y1="7" x2="20" y2="7" />
+        <line x1="7" y1="13" x2="17" y2="13" />
+        <line x1="10" y1="19" x2="14" y2="19" />
+      </svg>
+    );
+    const CashbackChipIcon = ({ color }) => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color || CONFIG.brand.teal} strokeWidth="1.8">
+        <circle cx="9" cy="9" r="3.5" /><circle cx="15" cy="15" r="3.5" />
+        <line x1="7" y1="17" x2="17" y2="7" strokeLinecap="round" />
+      </svg>
+    );
+    const LoansChipIcon = ({ color }) => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color || CONFIG.brand.teal} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
+        <path d="M5 12l3-2 2 2 3-3 4 4" />
+        <path d="M9 15l2 2 3-3" />
+        <path d="M4 8a4 4 0 0 1 4-2h8a4 4 0 0 1 4 2v10a4 4 0 0 1-4 2H8a4 4 0 0 1-4-2z" />
+      </svg>
+    );
+    const DiscountBadge = ({ size = 26 }) => (
+      <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+        <path d="M16 2l3 3 4-1 1 4 4 3-3 3 1 4-4 1-1 4-4-1-3 3-3-3-4 1-1-4-4-1 1-4-3-3 4-3 1-4 4 1z" fill={CONFIG.brand.paidBg} stroke={CONFIG.brand.paidText} strokeWidth="1.4" strokeLinejoin="round"/>
+        <line x1="12" y1="20" x2="20" y2="12" stroke={CONFIG.brand.paidText} strokeWidth="1.6" strokeLinecap="round"/>
+        <circle cx="13" cy="13" r="1.3" fill={CONFIG.brand.paidText}/>
+        <circle cx="19" cy="19" r="1.3" fill={CONFIG.brand.paidText}/>
+      </svg>
+    );
+    // Bottom tab icons — Home reused above; Circle / Explore / Profile follow.
+    const CircleTabIcon = ({ active }) => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+      </svg>
+    );
+    const ExploreTabIcon = () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="16.5" y1="16.5" x2="21" y2="21" strokeLinecap="round" />
+      </svg>
+    );
+    const ProfileTabIcon = () => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" strokeLinecap="round" />
+      </svg>
+    );
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Proactive AI nudges (v3 addition) — 4 visual patterns + 7 scenarios
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /** Pattern A — Speech bubble anchored to the FAB */
+    const SpeechBubbleNudge = ({ onDismiss, onOpen, content }) => (
+      <div className="absolute z-40 soft-pop" style={{ bottom: '105px', right: '14px', width: '240px' }}>
+        <button
+          onClick={onOpen}
+          className="w-full text-left bg-white rounded-2xl shadow-xl border border-gray-200 p-3 pr-7 relative hover:shadow-2xl transition"
+        >
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 flex-shrink-0"><JirehBurst size={16} /></span>
+            <p className="text-[11px] text-gray-800 leading-snug">{renderRich(content.text)}</p>
+          </div>
+          <div
+            className="absolute bg-white border-r border-b border-gray-200"
+            style={{ bottom: '-6px', right: '22px', width: '12px', height: '12px', transform: 'rotate(45deg)' }}
+          />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+          className="absolute top-1.5 right-1.5 text-gray-400 hover:text-gray-700 p-0.5 z-10"
+        >
+          <CloseXIcon size={11} />
+        </button>
+        <div className="mt-2 flex justify-end">
+          <button
+            onClick={onOpen}
+            className="text-[11px] font-semibold px-3 py-1.5 rounded-full text-white shadow-sm hover:brightness-110"
+            style={{ background: CONFIG.brand.color }}
+          >
+            {content.ctaLabel}
+          </button>
+        </div>
+      </div>
+    );
+
+    /** Pattern B — Inline dashboard card */
+    const InlineCardNudge = ({ onDismiss, onOpen, content }) => (
+      <div
+        className="mx-4 rounded-2xl p-3.5 border relative fade-in"
+        style={{
+          background: `linear-gradient(135deg, ${CONFIG.brand.colorSoft} 0%, ${CONFIG.brand.paidBg} 100%)`,
+          borderColor: `${CONFIG.brand.color}22`,
+        }}
+      >
+        <button
+          onClick={onDismiss}
+          className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 p-0.5"
+        >
+          <CloseXIcon size={12} />
+        </button>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span style={{ color: CONFIG.brand.color }}><Sparkle size={12} /></span>
+          <span
+            className="text-[9px] font-bold uppercase tracking-wider"
+            style={{ color: CONFIG.brand.colorText }}
+          >
+            {content.badge || 'Suggested by Ask Jireh'}
+          </span>
+        </div>
+        <p className="text-xs text-gray-800 leading-snug mb-2.5">{renderRich(content.text)}</p>
+        <div className="flex gap-1.5">
+          <button
+            onClick={onOpen}
+            className="flex-1 py-1.5 rounded-full text-[11px] font-semibold text-white hover:brightness-110"
+            style={{ background: CONFIG.brand.color }}
+          >
+            {content.primaryLabel}
+          </button>
+          <button
+            onClick={onOpen}
+            className="flex-1 py-1.5 rounded-full text-[11px] font-semibold border bg-white"
+            style={{ borderColor: CONFIG.brand.color, color: CONFIG.brand.colorText }}
+          >
+            {content.secondaryLabel}
+          </button>
+        </div>
+      </div>
+    );
+
+    /** Pattern C — Top banner sliding down from below the header */
+    const TopBannerNudge = ({ onDismiss, onOpen, content }) => (
+      <div
+        className="px-3 py-2 flex items-center gap-2 relative slide-down border-b flex-shrink-0"
+        style={{
+          background: `linear-gradient(90deg, ${CONFIG.brand.paidBg} 0%, ${CONFIG.brand.colorSoft} 100%)`,
+          borderColor: `${CONFIG.brand.colorText}22`,
+        }}
+      >
+        <span
+          className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: CONFIG.brand.paidText, color: 'white' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </span>
+        <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+          <p className="text-[11px] text-gray-800 leading-tight">{renderRich(content.text)}</p>
+          {content.subtitle && <p className="text-[10px] text-gray-600">{content.subtitle}</p>}
+        </button>
+        <button
+          onClick={onOpen}
+          className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white flex-shrink-0"
+          style={{ background: CONFIG.brand.color }}
+        >
+          {content.ctaLabel}
+        </button>
+        <button
+          onClick={onDismiss}
+          className="text-gray-500 hover:text-gray-800 p-0.5 flex-shrink-0"
+        >
+          <CloseXIcon size={12} />
+        </button>
+      </div>
+    );
+
+    /** Pattern D — FAB pulse + small floating label */
+    const FABLabelNudge = ({ onDismiss, onOpen, content }) => (
+      <div
+        className="absolute soft-pop flex items-center gap-1 z-40"
+        style={{ bottom: '115px', right: '75px' }}
+      >
+        <button
+          onClick={onOpen}
+          className="bg-white px-2.5 py-1 rounded-full shadow-lg border border-gray-200 flex items-center gap-1.5 hover:shadow-xl transition"
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: CONFIG.brand.color }} />
+          <span className="text-[10px] font-semibold text-gray-800">{content.label}</span>
+        </button>
+        <button
+          onClick={onDismiss}
+          className="w-5 h-5 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center text-gray-400"
+        >
+          <CloseXIcon size={9} />
+        </button>
+      </div>
+    );
+
+    /** Scenario definitions — nudge content + chat script when tapped.
+     *  The first entry is a special "user-initiated" mode: no nudge fires,
+     *  chat opens straight to the Welcome screen (as if the user tapped the FAB). */
+    const SCENARIOS = [
+      {
+        id: 'user-initiated',
+        title: 'User taps the FAB (no trigger)',
+        section: 'User-initiated',
+        special: 'welcome',
+      },
+      {
+        id: 'payment-request',
+        title: 'School clinic payment request',
+        section: 'Incoming request',
+        visualPattern: 'C',
+        nudgeContent: {
+          text: '**Nurse M.** at **Kisima School Clinic** sent a KES 850 request for **Kimathi**.',
+          subtitle: 'Bumped knee · bandage + antiseptic.',
+          ctaLabel: 'Review',
+        },
+        entryLine: 'Opened from a school clinic payment request notification.',
+        chatScript: [
+          { role: 'ai', text: "Nurse M. Otieno at **Kisima School Clinic** sent this — a payment request for **Kimathi**. He bumped his knee at school; the clinic gave him a bandage and antiseptic. Total **KES 850**." },
+          { role: 'ai', text: 'Your **Care Fund** has **KES 2,050** — enough to cover this without touching M-Pesa at all.' },
+          { role: 'ai', text: 'Please review before we send:' },
+          {
+            role: 'card',
+            card: {
+              title: 'Payment confirmation',
+              icon: 'wallet',
+              rows: [
+                { label: 'Patient', value: 'Kimathi (dependent)' },
+                { label: 'Provider', value: 'Kisima School Clinic' },
+                { label: 'Bill', value: 'KES 850' },
+                { label: 'Care Fund', value: '- KES 850' },
+                { label: 'M-Pesa due now', value: 'KES 0', bold: true },
+              ],
+              primary: 'Confirm from Care Fund',
+              secondary: 'Split with M-Pesa',
+            },
+          },
+          { role: 'ai', text: 'Done. No M-Pesa PIN needed — the money moved inside Jireh.' },
+          {
+            role: 'ai',
+            pill: 'Paid',
+            text: '**KES 850 to Kisima School Clinic for Kimathi.**\nCare Fund balance: **KES 1,200**.',
+            simulateDelay: 1400,
+          },
+        ],
+      },
+      {
+        id: 'circle-invite-history',
+        title: 'Suggest Circle invite from payment history',
+        section: 'Solo user',
+        visualPattern: 'B',
+        nudgeContent: {
+          text: "You paid **Grace's** Kisima bill last month. Adding her to your Circle means she can help you back when a bill hits at a bad time.",
+          primaryLabel: 'Draft invite',
+          secondaryLabel: 'Not now',
+        },
+        entryLine: 'Opened from a Circle invite suggestion.',
+        chatScript: [
+          { role: 'ai', text: "You paid **Grace Wanjiru's** Kisima bill last month — KES 3,200. Adding her to your Circle means she can help you when a bill hits you at a bad time. Same for you helping her." },
+          { role: 'ai', text: 'Here are 2 SMS drafts for Grace — pick one:' },
+          {
+            role: 'ai',
+            bullets: [
+              "**Warm:** *Mama, I've added you to my Jireh Circle. Now we can help each other with hospital bills — like when I helped you with Kisima. Set up in 2 min: [link]*",
+              "**Simple:** *Grace, I've added you to my Jireh Circle. Sign up here so we can share care: [link]*",
+            ],
+          },
+          { role: 'user', text: 'Warm' },
+          { role: 'ai', text: 'Please review before sending:' },
+          {
+            role: 'card',
+            card: {
+              title: 'Circle invite',
+              icon: 'send',
+              rows: [
+                { label: 'To', value: 'Grace Wanjiru' },
+                { label: 'Via', value: 'SMS' },
+                { label: 'Message', value: '"Mama, I\'ve added you..."' },
+                { label: 'Cost', value: 'Free', bold: true },
+              ],
+              primary: 'Send invite',
+              secondary: 'Edit',
+            },
+          },
+          {
+            role: 'ai',
+            pill: 'Sent',
+            text: '**Invite sent to Grace.** I\'ll notify you when she joins your Circle.',
+            simulateDelay: 1300,
+          },
+        ],
+      },
+      {
+        id: 'circle-introduce-solo',
+        title: 'Introduce Circle to solo users',
+        section: 'Solo user',
+        visualPattern: 'D',
+        nudgeContent: { label: 'Something worth knowing' },
+        entryLine: 'Opened from a subtle FAB hint.',
+        chatScript: [
+          { role: 'ai', text: "Habari Njeri. You've paid **3 bills solo** this quarter — no PayLink share, no family help. Want a quick look at what having a Circle would actually do for you?" },
+          { role: 'user', text: 'Show me' },
+          { role: 'ai', text: 'In your case, a Circle would let you:' },
+          {
+            role: 'ai',
+            bullets: [
+              '**Split bills** — send a PayLink to family who can cover part of a big bill',
+              '**Share Care Fund** — you or family can gift some balance to each other',
+              '**Emergency backup** — when M-Pesa runs low mid-month, family can PayLink you directly',
+            ],
+          },
+          { role: 'ai', text: 'The 3 bills you paid alone this quarter totalled **KES 12,700** out of pocket. Even one family member could have covered part of that.' },
+          { role: 'user', text: 'Who should I add?' },
+          { role: 'ai', text: 'Who do you turn to when things get tight? Start there.' },
+          {
+            role: 'card',
+            card: {
+              title: 'Suggested first invite',
+              icon: 'send',
+              rows: [
+                { label: 'Person', value: 'Grace Wanjiru' },
+                { label: 'Why', value: 'You paid her bill last month' },
+                { label: 'Draft ready', value: 'Yes' },
+              ],
+              primary: 'Draft invite for Grace',
+              secondary: 'Someone else',
+            },
+          },
+          {
+            role: 'ai',
+            pill: 'Draft ready',
+            text: 'SMS draft ready for Grace. Tap Send whenever you\'re ready.',
+            simulateDelay: 1200,
+          },
+        ],
+      },
+      {
+        id: 'circle-after-loan',
+        title: 'Prompt after taking a loan',
+        section: 'Solo user',
+        visualPattern: 'A',
+        nudgeContent: {
+          text: 'Got the loan sorted. Want family backup so you might not need one next time?',
+          ctaLabel: 'Show me how',
+        },
+        entryLine: 'Opened right after a 0% loan disbursed.',
+        chatScript: [
+          { role: 'ai', text: 'The **KES 5,000** is in your M-Pesa. Quick thought for next time — if you had a Circle, you might not have needed the loan at all. Family could have PayLinked you the same amount, no repayment schedule needed.' },
+          { role: 'ai', text: 'Adding one person is enough to have a backup. Who comes to mind?' },
+          { role: 'user', text: 'David — my brother' },
+          { role: 'ai', text: 'Draft ready for David:' },
+          {
+            role: 'card',
+            card: {
+              title: 'Circle invite',
+              icon: 'send',
+              rows: [
+                { label: 'To', value: 'David Ochieng' },
+                { label: 'Via', value: 'SMS' },
+                { label: 'Message', value: '"Bro, I\'ve added you..."' },
+                { label: 'Cost', value: 'Free', bold: true },
+              ],
+              primary: 'Send invite',
+              secondary: 'Edit',
+            },
+          },
+          {
+            role: 'ai',
+            pill: 'Sent',
+            text: '**Invite sent to David.** He can sign up whenever he\'s ready.',
+            simulateDelay: 1200,
+          },
+        ],
+      },
+      {
+        id: 'partner-cashback-recap',
+        title: 'Cashback recap for partner regulars',
+        section: 'Partner user',
+        visualPattern: 'B',
+        nudgeContent: {
+          text: 'Your **Care Fund** grew **KES 850** this quarter — all from partner facility visits. Nice.',
+          primaryLabel: 'See breakdown',
+          secondaryLabel: 'Later',
+        },
+        entryLine: 'Opened from a cashback recap suggestion.',
+        chatScript: [
+          { role: 'ai', text: "Nice work — you earned **KES 850 in cashback this quarter**, all from partner visits. Here's how:" },
+          {
+            role: 'ai',
+            bullets: [
+              '**Kisima Hospital** — 3 visits, KES 4,500 total, earned **KES 225**',
+              '**Uzima Rehab** — 2 visits, KES 3,800 total, earned **KES 190**',
+              '**Kisima School Clinic** (Kimathi) — 5 visits, KES 8,700 total, earned **KES 435**',
+            ],
+          },
+          { role: 'ai', text: 'Your total **Care Fund** is now **KES 2,050**. What next?' },
+          { role: 'user', text: 'Save it for next time' },
+          { role: 'ai', text: 'Please review:' },
+          {
+            role: 'card',
+            card: {
+              title: 'Care Fund plan',
+              icon: 'wallet',
+              rows: [
+                { label: 'Balance', value: 'KES 2,050' },
+                { label: 'Auto-apply on', value: 'Next partner bill' },
+                { label: 'Expires', value: 'Never' },
+              ],
+              primary: 'Save & auto-apply',
+              secondary: 'Change',
+            },
+          },
+          {
+            role: 'ai',
+            pill: 'Saved',
+            text: '**Care Fund locked in.** It\'ll auto-apply on your next partner visit.',
+            simulateDelay: 1200,
+          },
+        ],
+      },
+      {
+        id: 'partner-nonpartner-recap',
+        title: 'Non-partner spend recap',
+        section: 'Partner user',
+        visualPattern: 'A',
+        nudgeContent: {
+          text: 'You paid **KES 4,500** at Kilimani Medical (not a partner). Same care at **Kisima** would\'ve earned **KES 225** back.',
+          ctaLabel: 'Show me',
+        },
+        entryLine: 'Opened from a non-partner spend insight.',
+        chatScript: [
+          { role: 'ai', text: "Kilimani Medical isn't a Jireh partner — you paid **KES 4,500** out of pocket and earned nothing back." },
+          { role: 'ai', text: "**Kisima Hospital** is 500m further, offers the same physio, and gives you **5% cashback**. On that same bill, you'd have earned **KES 225** — enough to cover part of your next visit." },
+          { role: 'ai', text: "Want me to set Kisima as your preferred for physio? I'll flag partners first next time you need care." },
+          { role: 'user', text: 'Yes, set Kisima' },
+          { role: 'ai', text: 'Please review:' },
+          {
+            role: 'card',
+            card: {
+              title: 'Preferred facility',
+              icon: 'wallet',
+              rows: [
+                { label: 'Care type', value: 'Physio' },
+                { label: 'Preferred', value: 'Kisima Hospital' },
+                { label: 'Cashback rate', value: '5%' },
+                { label: 'Backup', value: 'Uzima Rehab' },
+              ],
+              primary: 'Set as preferred',
+              secondary: 'Not now',
+            },
+          },
+          {
+            role: 'ai',
+            pill: 'Set',
+            text: "**Kisima set as your preferred for physio.** I'll show it first next time you search for care.",
+            simulateDelay: 1200,
+          },
+        ],
+      },
+      {
+        id: 'partner-discount-match',
+        title: 'Discount matched to your care pattern',
+        section: 'Partner user',
+        visualPattern: 'C',
+        nudgeContent: {
+          text: '**Kisima** has 15% off physio through Nov — you\'ve had 2 physio visits there this year.',
+          subtitle: 'Save it for your next visit?',
+          ctaLabel: 'Save it',
+        },
+        entryLine: 'Opened from a matched-discount nudge.',
+        chatScript: [
+          { role: 'ai', text: '**Kisima Hospital** has a **15% off physio** discount running through **30 November**. Code **PHYSIO15**.' },
+          { role: 'ai', text: "You've had 2 physio visits at Kisima this year at about KES 1,800 each. If you go again in November, this saves you **KES 270 per visit**." },
+          { role: 'ai', text: 'Want me to save this and auto-apply on your next Kisima physio bill?' },
+          { role: 'user', text: 'Yes, save it' },
+          { role: 'ai', text: 'Please review:' },
+          {
+            role: 'card',
+            card: {
+              title: 'Save discount',
+              icon: 'wallet',
+              rows: [
+                { label: 'Code', value: 'PHYSIO15' },
+                { label: 'Rate', value: '15% off' },
+                { label: 'Valid until', value: '30 Nov 2026' },
+                { label: 'Applies at', value: 'Kisima · Physio' },
+                { label: 'Est. saving', value: 'KES 270', bold: true },
+              ],
+              primary: 'Save & auto-apply',
+              secondary: 'Not now',
+            },
+          },
+          {
+            role: 'ai',
+            pill: 'Saved',
+            text: "**PHYSIO15 saved.** I'll apply it automatically next time you pay at Kisima for physio.",
+            simulateDelay: 1200,
+          },
+        ],
+      },
+    ];
+
+    /** Patient dashboard — matches Figma node 4553:3806 (Jireh Patients Web App
+     *  home tab). Sections: header → search → category chips → gradient card
+     *  carousel (Cashback + Loans) → action pills → Discounts & Offers row →
+     *  fixed bottom "Pay Medical Bill" CTA → 4-tab bar. FAB above the CTA. */
+    const PatientDashboard = ({ lang, onOpenChat, onSelectJob, activeScenario, nudgeVisible, onNudgeDismiss, onNudgeOpen }) => {
+      const s = CONFIG.strings[lang];
+      const jobById = (id) => CONFIG.jobs.find((j) => j.id === id);
+      return (
+        <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
+          {/* ── Header: logo + WhatsApp + Bell ───────────────────────────── */}
+          <div className="px-4 pt-2.5 pb-2.5 flex items-center justify-between flex-shrink-0 border-b border-gray-50">
+            <div className="flex items-center gap-1.5">
+              <JirehBurst size={22} />
+              <span className="flex items-baseline">
+                <span className="text-lg font-light" style={{ color: '#C084FC' }}>{CONFIG.brand.name}</span>
+                <span className="text-lg font-bold" style={{ color: CONFIG.brand.color }}>{CONFIG.brand.suffix}</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button aria-label="WhatsApp"><WhatsAppIcon /></button>
+              <button className="relative text-gray-700 p-1" aria-label="Notifications">
+                <BellIcon size={22} />
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: CONFIG.brand.color }} />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Top banner nudge (Pattern C) ──────────────────────────── */}
+          {activeScenario && activeScenario.visualPattern === 'C' && nudgeVisible && (
+            <TopBannerNudge
+              content={activeScenario.nudgeContent}
+              onDismiss={onNudgeDismiss}
+              onOpen={onNudgeOpen}
+            />
+          )}
+
+          {/* ── Scrolling body ─────────────────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-36">
+            {/* Search bar */}
+            <div className="px-4 pt-3">
+              <div className="flex items-center gap-2 bg-white rounded-full border border-gray-200 pl-3.5 pr-1.5 py-1.5">
+                <span className="text-gray-400"><SearchIcon size={16} /></span>
+                <input
+                  readOnly
+                  placeholder={s.dashFindCare}
+                  className="flex-1 bg-transparent outline-none text-sm placeholder-gray-400 min-w-0"
+                />
+                <button
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ background: CONFIG.brand.colorSoft, color: CONFIG.brand.colorText }}
+                >
+                  <FilterIcon />
+                  {s.dashFilter}
+                </button>
+              </div>
+            </div>
+
+            {/* Category chips */}
+            <div className="px-4 pt-3 flex items-center gap-2">
+              <button
+                onClick={() => onSelectJob(jobById('send-money'))}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-semibold text-gray-800 hover:border-purple-200"
+              >
+                <CashbackChipIcon /> {s.dashChipCashback}
+              </button>
+              <button
+                onClick={() => onSelectJob(jobById('borrow'))}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-semibold text-gray-800 hover:border-purple-200"
+              >
+                <LoansChipIcon /> {s.dashChipLoans}
+              </button>
+            </div>
+
+            {/* Feature cards carousel */}
+            <div className="mt-3 pl-4 overflow-x-auto no-scrollbar flex gap-2.5 snap-x snap-mandatory">
+              {/* Cashback (purple) card */}
+              <div
+                onClick={() => onSelectJob(jobById('send-money'))}
+                className="snap-start flex-shrink-0 rounded-2xl p-3.5 text-white relative overflow-hidden cursor-pointer hover:brightness-110 transition"
+                style={{
+                  width: 'calc(100% - 60px)',
+                  background: 'linear-gradient(135deg, #6B21A8 0%, #A855F7 100%)',
+                }}
+              >
+                <span
+                  className="inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-wider"
+                  style={{ background: 'rgba(0,0,0,0.28)' }}
+                >
+                  {s.dashCardCashbackLabel}
+                </span>
+                <div className="mt-8">
+                  <div className="text-xs opacity-90">{s.dashCardCashbackEarned}</div>
+                  <div className="mt-0.5 text-xl">
+                    <span className="opacity-80 text-sm">KES </span>
+                    <span className="font-bold text-2xl">850</span>
+                  </div>
+                </div>
+                <div className="absolute -right-3 -top-2 opacity-40">
+                  <JirehBurst size={100} color="white" colorLight="rgba(255,255,255,0.5)" />
+                </div>
+              </div>
+
+              {/* Loans (teal) card */}
+              <div
+                onClick={() => onSelectJob(jobById('borrow'))}
+                className="snap-start flex-shrink-0 rounded-2xl p-3.5 text-white relative overflow-hidden cursor-pointer hover:brightness-110 transition"
+                style={{
+                  width: 'calc(100% - 60px)',
+                  background: 'linear-gradient(135deg, #0F766E 0%, #14B8A6 100%)',
+                }}
+              >
+                <span
+                  className="inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-wider"
+                  style={{ background: 'rgba(0,0,0,0.28)' }}
+                >
+                  {s.dashCardLoansLabel}
+                </span>
+                <div className="mt-8">
+                  <div className="text-xs opacity-90">{s.dashCardCreditAvailable}</div>
+                  <div className="mt-0.5 text-xl">
+                    <span className="opacity-80 text-sm">KES </span>
+                    <span className="font-bold text-2xl">12,000</span>
+                  </div>
+                </div>
+                <div className="absolute -right-3 -top-2 opacity-40">
+                  <JirehBurst size={100} color="white" colorLight="rgba(255,255,255,0.5)" />
+                </div>
+              </div>
+              <div className="flex-shrink-0 w-3" aria-hidden />
+            </div>
+
+            {/* Action pills */}
+            <div className="px-4 mt-3 grid grid-cols-3 gap-2">
+              {[
+                { label: s.dashActionRedeem, id: 'send-money' },
+                { label: s.dashActionShare, id: 'send-money' },
+                { label: s.dashActionRaise, id: 'ask-someone' },
+              ].map((a, i) => (
+                <button
+                  key={i}
+                  onClick={() => onSelectJob(jobById(a.id))}
+                  className="py-2 rounded-full text-sm font-semibold hover:brightness-105"
+                  style={{ background: CONFIG.brand.colorSoft, color: CONFIG.brand.colorText }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Inline card nudge (Pattern B) */}
+            {activeScenario && activeScenario.visualPattern === 'B' && nudgeVisible && (
+              <div className="mt-4">
+                <InlineCardNudge
+                  content={activeScenario.nudgeContent}
+                  onDismiss={onNudgeDismiss}
+                  onOpen={onNudgeOpen}
+                />
+              </div>
+            )}
+
+            {/* Discounts & Offers */}
+            <div className="mt-5">
+              <div className="px-4 flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold text-gray-900">{s.dashDiscountsHeading}</div>
+                <button className="text-xs text-gray-500 flex items-center gap-0.5">
+                  {s.dashSeeAll} <ChevronRight size={12} />
+                </button>
+              </div>
+              <div className="pl-4 flex gap-2 overflow-x-auto no-scrollbar">
+                {[
+                  { title: s.dashDiscount1Title, sub: s.dashDiscount1Sub },
+                  { title: s.dashDiscount2Title, sub: s.dashDiscount2Sub },
+                  { title: s.dashDiscount3Title, sub: s.dashDiscount3Sub },
+                ].map((d, i) => (
+                  <div
+                    key={i}
+                    className="flex-shrink-0 flex items-center gap-2 rounded-xl p-2.5 border min-w-[190px]"
+                    style={{ background: CONFIG.brand.paidBg, borderColor: `${CONFIG.brand.paidText}22` }}
+                  >
+                    <DiscountBadge />
+                    <div>
+                      <div className="text-xs font-semibold text-gray-900 leading-tight">{d.title}</div>
+                      <div className="text-[10px] text-gray-600 mt-0.5">{d.sub}</div>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex-shrink-0 w-2" aria-hidden />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Pay Medical Bill — primary CTA (opens pay-bill chat) ─────── */}
+          <div className="absolute bottom-14 left-0 right-0 px-4 pb-2 z-20">
+            <button
+              onClick={() => onSelectJob(jobById('pay-bill'))}
+              className="w-full py-3.5 rounded-full text-white text-sm font-bold shadow-lg hover:brightness-110 transition"
+              style={{
+                background: `linear-gradient(135deg, ${CONFIG.brand.color} 0%, ${CONFIG.brand.colorText} 100%)`,
+                boxShadow: `0 8px 20px -4px ${CONFIG.brand.color}66`,
+              }}
+            >
+              {s.dashPayMedicalBill}
+            </button>
+          </div>
+
+          {/* ── Ask Jireh FAB — circular, above the CTA on the right ─────── */}
+          <div
+            className="absolute z-30"
+            style={{ bottom: '108px', right: '14px' }}
+          >
+            {activeScenario && activeScenario.visualPattern === 'D' && nudgeVisible && (
+              <span
+                className="absolute inset-0 rounded-full pulse-ring"
+                style={{ color: CONFIG.brand.color }}
+              />
+            )}
+            <button
+              onClick={onOpenChat}
+              className="relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition text-white"
+              style={{
+                background: `linear-gradient(135deg, ${CONFIG.brand.color} 0%, ${CONFIG.brand.colorText} 100%)`,
+                boxShadow: `0 12px 26px -6px ${CONFIG.brand.color}99`,
+              }}
+              aria-label={s.askJireh}
+              title={s.askJireh}
+            >
+              <Sparkle size={24} />
+            </button>
+          </div>
+
+          {/* ── Overlay nudges: Speech bubble (A) + FAB label (D) ───────── */}
+          {activeScenario && activeScenario.visualPattern === 'A' && nudgeVisible && (
+            <SpeechBubbleNudge
+              content={activeScenario.nudgeContent}
+              onDismiss={onNudgeDismiss}
+              onOpen={onNudgeOpen}
+            />
+          )}
+          {activeScenario && activeScenario.visualPattern === 'D' && nudgeVisible && (
+            <FABLabelNudge
+              content={activeScenario.nudgeContent}
+              onDismiss={onNudgeDismiss}
+              onOpen={onNudgeOpen}
+            />
+          )}
+
+          {/* ── Bottom tab bar ───────────────────────────────────────────── */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 z-20">
+            {[
+              { icon: <TabHomeIcon active />, label: s.dashTabHome, active: true },
+              { icon: <CircleTabIcon />, label: s.dashTabCircle },
+              { icon: <ExploreTabIcon />, label: s.dashTabExplore },
+              { icon: <ProfileTabIcon />, label: s.dashTabProfile },
+            ].map((t, i) => (
+              <button
+                key={i}
+                className="flex flex-col items-center gap-0.5 min-w-14"
+                style={{ color: t.active ? CONFIG.brand.color : '#9CA3AF' }}
+              >
+                {t.icon}
+                <span className="text-[10px] font-medium">{t.label}</span>
+                {t.active && (
+                  <div className="w-6 h-0.5 rounded-full mt-0.5" style={{ background: CONFIG.brand.color }} />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    /** Wavy background decoration behind the welcome logo — purple + teal blend. */
+    const WavesBackground = () => (
+      <svg
+        className="absolute top-2 left-0 right-0 w-full pointer-events-none"
+        height="110" viewBox="0 0 380 110" fill="none"
+        preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M-20 25 C 60 5, 140 45, 220 20 S 380 40, 400 15"
+              stroke={CONFIG.brand.colorLight} strokeWidth="1.3" fill="none" opacity="0.65" />
+        <path d="M-20 42 C 60 22, 140 65, 220 40 S 380 58, 400 35"
+              stroke={CONFIG.brand.teal} strokeWidth="1.1" fill="none" opacity="0.55" />
+        <path d="M-20 60 C 60 40, 140 82, 220 56 S 380 76, 400 52"
+              stroke={CONFIG.brand.colorLight} strokeWidth="0.9" fill="none" opacity="0.35" />
+        <path d="M-20 82 C 60 62, 140 100, 220 78 S 380 96, 400 72"
+              stroke={CONFIG.brand.teal} strokeWidth="0.8" fill="none" opacity="0.35" />
+      </svg>
+    );
+
+    const ChevronLeft = () => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+    );
+
+    const MicIcon = () => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="9" y="3" width="6" height="12" rx="3" />
+        <path d="M5 11a7 7 0 0 0 14 0" />
+        <line x1="12" y1="18" x2="12" y2="22" />
+      </svg>
+    );
+
+    const SendIcon = () => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+        <path d="M2 12l20-9-9 20-2-9-9-2z" />
+      </svg>
+    );
+
+    const InfoIcon = () => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <circle cx="12" cy="8" r="0.5" fill="currentColor" />
+      </svg>
+    );
+
+    const RefreshIcon = () => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10" />
+      </svg>
+    );
+
+    const CardIcon = ({ kind }) => {
+      const map = {
+        send: <path d="M2 12l20-9-9 20-2-9-9-2z" />,
+        wallet: <><rect x="2" y="6" width="20" height="14" rx="2" /><path d="M2 10h20" /></>,
+      };
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          {map[kind] ?? map.send}
+        </svg>
+      );
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Small building blocks
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const AIAvatar = () => (
+      <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center">
+        <JirehBurst size={20} />
+      </div>
+    );
+
+    const TypingBubble = () => (
+      <div className="flex items-start gap-2 fade-in">
+        <AIAvatar />
+        <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5">
+          <span className="typing-dot w-1.5 h-1.5 rounded-full bg-gray-400" />
+          <span className="typing-dot w-1.5 h-1.5 rounded-full bg-gray-400" />
+          <span className="typing-dot w-1.5 h-1.5 rounded-full bg-gray-400" />
+        </div>
+      </div>
+    );
+
+    const SavedContextChip = ({ lang }) => (
+      <div className="flex items-center gap-2 self-start rounded-full px-3 py-1.5 fade-in"
+           style={{ background: CONFIG.brand.colorSoft, color: CONFIG.brand.colorText }}>
+        <JirehBurst size={12} />
+        <span className="text-xs font-medium">
+          {CONFIG.strings[lang].savedContextLabel}: {CONFIG.user.savedContext}
+        </span>
+      </div>
+    );
+
+    /**
+     * Disclaimer info-chip — mirrors the info-box style used at
+     * jireh-core-client/src/Routes/Patient/Pages/Onboarding/
+     *   PatientManualIdVerificationSubmitted.tsx (line 31):
+     *   "border border-emerald-200 bg-emerald-50 ... text-emerald-800"
+     * so the real implementation can drop these exact classes on Alert (variant="success").
+     */
+    const DisclaimerChip = ({ text }) => (
+      <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 fade-in">
+        <span className="text-emerald-600 mt-0.5"><InfoIcon /></span>
+        <span className="text-xs text-emerald-800 leading-snug">{text}</span>
+      </div>
+    );
+
+    const UserBubble = ({ text }) => (
+      <div className="flex justify-end fade-in">
+        <div className="max-w-[80%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm"
+             style={{ background: CONFIG.brand.colorSoft, color: '#4C1D95' }}>
+          {text}
+        </div>
+      </div>
+    );
+
+    /**
+     * PaidPill — mirrors healthcare-portal's PaymentRequestStatusBadge (line 10):
+     *   [PaymentRequestStatus.Paid]: "bg-teal-100 text-teal-700"
+     * When we implement the real feature, drop the same Tailwind classes on a Badge.
+     */
+    const PaidPill = ({ label = 'Paid' }) => (
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+        style={{ background: CONFIG.brand.paidBg, color: CONFIG.brand.paidText }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        {label}
+      </span>
+    );
+
+    const AIBubble = ({ text, bullets, footer, disclaimer, pill, lang }) => (
+      <div className="flex items-start gap-2 fade-in">
+        <AIAvatar />
+        <div className="flex flex-col gap-2 max-w-[85%]">
+          {pill && (
+            <div>
+              <PaidPill label={t(pill, lang)} />
+            </div>
+          )}
+          <div className="text-sm text-gray-800 leading-relaxed">
+            {renderRich(text)}
+            {bullets && (
+              <ul className="mt-2 space-y-1 list-disc list-inside">
+                {bullets.map((b, i) => <li key={i}>{renderRich(b)}</li>)}
+              </ul>
+            )}
+            {footer && <div className="mt-2">{renderRich(footer)}</div>}
+          </div>
+          {disclaimer && (
+            <DisclaimerChip text={
+              disclaimer === 'health' ? CONFIG.strings[lang].disclaimer
+              : disclaimer === 'financial' ? CONFIG.strings[lang].disclaimerFinancial
+              : disclaimer === 'privacy' ? CONFIG.strings[lang].disclaimerPrivacy
+              : disclaimer
+            } />
+          )}
+        </div>
+      </div>
+    );
+
+    const ChipRow = ({ chips, lang, onTap }) => (
+      <div className="flex flex-wrap gap-2 justify-end fade-in">
+        {chips.map((c, i) => (
+          <button
+            key={i}
+            onClick={() => onTap(c)}
+            className="text-sm rounded-full px-3.5 py-1.5 border transition hover:scale-[1.02]"
+            style={{
+              borderColor: CONFIG.brand.color,
+              color: CONFIG.brand.colorText,
+              background: 'white',
+            }}
+          >
+            {t(c.label, lang)}
+          </button>
+        ))}
+      </div>
+    );
+
+    /**
+     * Inline amount picker — activates when a chip has `next: 'amount-input'`.
+     * Type a number, press Enter or tap Send. Value becomes a user bubble.
+     */
+    const AmountInput = ({ hint, onSubmit }) => {
+      const [value, setValue] = useState('');
+      const numeric = parseInt(value.replace(/[^0-9]/g, ''), 10);
+      const canSubmit = !isNaN(numeric) && numeric > 0;
+      const formatted = !isNaN(numeric) ? numeric.toLocaleString() : '';
+      return (
+        <div className="flex items-start gap-2 fade-in">
+          <AIAvatar />
+          <div className="w-full max-w-[85%] bg-white border border-gray-200 rounded-2xl rounded-tl-sm p-3 shadow-sm">
+            <div className="text-xs text-gray-500 mb-2">{hint || 'Enter an amount'}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-500">KES</span>
+              <input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                value={formatted}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && canSubmit) onSubmit(numeric);
+                }}
+                placeholder="0"
+                className="flex-1 text-lg font-semibold text-gray-900 outline-none border-b border-gray-200 focus:border-purple-500 focus:border-b-2 min-w-0"
+              />
+              <button
+                disabled={!canSubmit}
+                onClick={() => canSubmit && onSubmit(numeric)}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-40"
+                style={{ background: CONFIG.brand.color }}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const ConfirmationCard = ({ card, lang, onConfirm, onEdit }) => (
+      <div className="flex items-start gap-2 fade-in">
+        <AIAvatar />
+        <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm w-full shadow-sm overflow-hidden">
+          <div className="flex items-center gap-2 px-4 pt-3 pb-2 text-gray-700">
+            <span style={{ color: CONFIG.brand.color }}><CardIcon kind={card.icon} /></span>
+            <span className="font-semibold text-sm">{t(card.title, lang)}</span>
+          </div>
+          <div className="px-4 pb-2 space-y-1.5">
+            {card.rows.map((r, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-gray-500">{r.label}</span>
+                <span className={r.bold ? 'font-semibold text-gray-900' : 'text-gray-800'}>
+                  {r.value}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 p-3 border-t border-gray-100">
+            <button
+              onClick={onEdit}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+            >
+              {t(card.secondary, lang)}
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white hover:brightness-110"
+              style={{ background: CONFIG.brand.color }}
+            >
+              {t(card.primary, lang)}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+    const LanguageToggle = ({ lang, setLang }) => (
+      <div className="flex items-center gap-1 text-xs">
+        {['EN', 'SW'].map((code) => (
+          <button
+            key={code}
+            onClick={() => setLang(code)}
+            className="px-2 py-1 rounded-full font-semibold transition"
+            style={{
+              background: lang === code ? CONFIG.brand.color : 'transparent',
+              color: lang === code ? 'white' : CONFIG.brand.colorText,
+            }}
+          >
+            {code}
+          </button>
+        ))}
+      </div>
+    );
+
+    const WelcomeScreen = ({ lang, setLang, onSelectJob, onCloseChat }) => {
+      const strings = CONFIG.strings[lang];
+      const greeting = strings.welcomeGreeting.replace('{name}', CONFIG.user.name);
+      return (
+        <div className="flex-1 flex flex-col relative overflow-hidden"
+             style={{ background: 'linear-gradient(180deg, #FDFAFF 0%, #F8F0FF 100%)' }}>
+          <WavesBackground />
+
+          {/* Close X top-left — return to dashboard */}
+          {onCloseChat && (
+            <button
+              onClick={onCloseChat}
+              className="absolute top-3 left-3 z-20 w-8 h-8 rounded-full bg-white/70 flex items-center justify-center text-gray-600 hover:bg-white transition"
+              aria-label="Close"
+            >
+              <CloseXIcon size={16} />
+            </button>
+          )}
+
+          <div className="flex-1 flex flex-col items-center px-5 pt-8 pb-5 relative z-10 overflow-y-auto no-scrollbar">
+            {/* Burst logo with soft teal halo behind */}
+            <div className="mt-4 relative">
+              <div
+                className="absolute inset-0 rounded-full blur-2xl -z-10"
+                style={{
+                  background: `radial-gradient(circle, ${CONFIG.brand.teal}66 0%, transparent 70%)`,
+                  transform: 'scale(2.2)',
+                }}
+              />
+              <JirehBurst size={52} />
+            </div>
+
+            {/* Wordmark */}
+            <div className="mt-2">
+              <JirehWordmark height={22} />
+            </div>
+
+            {/* Tagline */}
+            <div className="mt-1.5 text-[11px] italic" style={{ color: CONFIG.brand.colorText }}>
+              {CONFIG.brand.tagline}
+            </div>
+
+            {/* Greeting */}
+            <div className="mt-7 text-center">
+              <div className="text-2xl font-bold text-gray-900">{greeting}</div>
+              <div className="text-base italic mt-0.5" style={{ color: CONFIG.brand.color }}>
+                {strings.welcomeSubtitle}
+              </div>
+            </div>
+
+            {/* Search input (decorative — chips below drive the interaction) */}
+            <div className="mt-5 w-full">
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 shadow-sm">
+                <input
+                  readOnly
+                  placeholder={strings.welcomePlaceholder}
+                  className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400"
+                />
+                </div>
+            </div>
+
+            {/* 2-col chip grid */}
+            <div className="mt-3 grid grid-cols-2 gap-2 w-full">
+              {CONFIG.jobs.map((job) => (
+                <button
+                  key={job.id}
+                  onClick={() => onSelectJob(job)}
+                  className="text-[11px] rounded-full px-2.5 py-2 border bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50 transition leading-tight"
+                  style={{ borderColor: '#E5E7EB' }}
+                >
+                  {t(job.welcomeChip, lang)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const HospitalList = ({ hospitals, lang }) => (
+      <div className="flex items-start gap-2 fade-in">
+        <AIAvatar />
+        <div className="flex-1 space-y-2">
+          {hospitals.map((h, i) => (
+            <div key={i} className="bg-white border border-gray-200 rounded-2xl p-3 shadow-sm">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="font-semibold text-sm text-gray-900 leading-tight">{h.name}</div>
+                {h.partner && (
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap flex-shrink-0"
+                    style={{ background: CONFIG.brand.colorSoft, color: CONFIG.brand.colorText }}
+                  >
+                    Jireh Partner
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 mb-2">
+                {h.distance} · {t(h.specialties, lang)}
+              </div>
+              {h.paymentPointCode && (
+                <div className="text-[10px] text-gray-500 mb-2 flex items-center gap-1.5">
+                  <span>Payment point:</span>
+                  <span
+                    className="font-mono font-semibold tracking-wider px-1.5 py-0.5 rounded"
+                    style={{ background: CONFIG.brand.colorSoft, color: CONFIG.brand.colorText }}
+                  >
+                    {h.paymentPointCode}
+                  </span>
+                </div>
+              )}
+              {h.partner ? (
+                <div className="flex gap-2">
+                  <button
+                    className="flex-1 py-1.5 rounded-lg text-xs font-medium text-white hover:brightness-110"
+                    style={{ background: CONFIG.brand.color }}
+                  >
+                    Start payment
+                  </button>
+                  <button className="flex-1 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50">
+                    Get estimate
+                  </button>
+                </div>
+              ) : (
+                <button className="w-full py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50">
+                  Directions
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phone frame
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const PhoneFrame = ({ children }) => (
+      <div className="mx-auto w-[380px] h-[760px] bg-black rounded-[46px] p-2 shadow-2xl relative">
+        <div className="w-full h-full bg-white rounded-[38px] overflow-hidden relative flex flex-col">
+          {/* Notch */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl z-20" />
+          {children}
+        </div>
+      </div>
+    );
+
+    const StatusBar = () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      return (
+        <div className="flex justify-between items-center px-6 pt-3 pb-1 text-xs font-semibold text-gray-800">
+          <span>{hh}:{mm}</span>
+          <div className="w-32 h-6" />
+          <span>◐</span>
+        </div>
+      );
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Main chat panel
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const ChatPanel = ({ activeJob, activeScenario, nudgeScenario, lang, setLang, onBack, onSelectJob, resetKey, chatOpen, onOpenChat, onCloseChat, onNudgeDismiss, onNudgeOpen, nudgeVisible }) => {
+      const [visible, setVisible] = useState([]);
+      const [isTyping, setIsTyping] = useState(false);
+      const scrollRef = useRef(null);
+      const strings = CONFIG.strings[lang];
+
+      // Scenario chat overrides job chat; otherwise fall back to job script.
+      const script = activeScenario
+        ? activeScenario.chatScript
+        : activeJob && !activeJob.stub
+        ? CONFIG.scripts[activeJob.id]
+        : null;
+
+      // Reset visible messages when the job/scenario or reset key changes
+      useEffect(() => {
+        setVisible([]);
+        setIsTyping(false);
+        if (activeScenario) {
+          playStep(0, []);
+          return;
+        }
+        if (!activeJob) return;
+
+        if (activeJob.stub) {
+          // Stub jobs: one AI message + terminal
+          const timer = setTimeout(() => {
+            setVisible([
+              { role: 'ai', text: `Here's how **${t(activeJob.title, lang)}** would work — this branch would continue in the full product.` },
+            ]);
+          }, 300);
+          return () => clearTimeout(timer);
+        }
+
+        // Wired jobs: play the first step
+        playStep(0, []);
+      }, [activeJob?.id, activeScenario?.id, resetKey]);
+
+      const playStep = (i, current) => {
+        if (!script || i >= script.length) return;
+        const s = script[i];
+
+        // User steps: append immediately then advance
+        if (s.role === 'user') {
+          const next = [...current, { ...s, key: i }];
+          setVisible(next);
+          setTimeout(() => playStep(i + 1, next), 500);
+          return;
+        }
+
+        // AI-chips: append; wait for user tap
+        if (s.role === 'ai-chips') {
+          const next = [...current, { ...s, key: i, stepIndex: i }];
+          setVisible(next);
+          return;
+        }
+
+        // Cards & AI bubbles: show typing then reveal
+        setIsTyping(true);
+        const delay = s.simulateDelay ?? 700;
+        setTimeout(() => {
+          setIsTyping(false);
+          const next = [...current, { ...s, key: i, stepIndex: i }];
+          setVisible(next);
+          if (s.role !== 'card') {
+            setTimeout(() => playStep(i + 1, next), 400);
+          }
+        }, delay);
+      };
+
+      const handleChip = (chip, fromStepIndex) => {
+        if (chip.next === 'terminal') {
+          const next = [
+            ...visible.filter((m) => m.role !== 'ai-chips' || m.stepIndex !== fromStepIndex),
+            { role: 'user', text: t(chip.label, lang), key: `chip-${Date.now()}` },
+            { role: 'ai', text: strings.stubTerminal, key: `terminal-${Date.now()}` },
+          ];
+          setVisible(next);
+          return;
+        }
+        if (chip.next === 'restart') {
+          onBack();
+          return;
+        }
+        if (chip.next === 'amount-input') {
+          const stripped = visible.filter((m) => m.role !== 'ai-chips' || m.stepIndex !== fromStepIndex);
+          setVisible([
+            ...stripped,
+            { role: 'amount-input', key: `amt-${Date.now()}`, hint: t(chip.hint, lang) },
+          ]);
+          return;
+        }
+        // Numeric next: jump to that step
+        const stripped = visible.filter((m) => m.role !== 'ai-chips' || m.stepIndex !== fromStepIndex);
+        playStep(chip.next, stripped);
+      };
+
+      const handleAmountSubmit = (amount) => {
+        const formatted = amount.toLocaleString();
+        const acceptedCopy = lang === 'EN'
+          ? `Got it — **KES ${formatted}**. In the full product I'd carry this amount through to the confirmation card.`
+          : `Nimeelewa — **KES ${formatted}**. Katika bidhaa kamili ningebeba kiasi hiki hadi kwenye kadi ya uthibitisho.`;
+        setVisible([
+          ...visible.filter((m) => m.role !== 'amount-input'),
+          { role: 'user', text: `KES ${formatted}`, key: `amt-user-${Date.now()}` },
+          { role: 'ai', text: acceptedCopy, key: `amt-ai-${Date.now()}` },
+          {
+            role: 'ai-chips',
+            chips: [{ label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' }],
+            stepIndex: `amt-back-${Date.now()}`,
+            key: `amt-chips-${Date.now()}`,
+          },
+        ]);
+      };
+
+      const handleConfirm = (fromStepIndex) => {
+        playStep(fromStepIndex + 1, visible);
+      };
+
+      const handleEdit = () => {
+        // In prototype: no-op with a tiny visual nudge would be nice, but keep simple
+      };
+
+      // Auto-scroll to bottom on new message
+      useEffect(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      }, [visible, isTyping]);
+
+      // Show saved-context chip once the user turn with savedContext:true appears
+      const showSavedContext = visible.some((m) => m.savedContext);
+
+      // Chat closed: show patient dashboard + FAB + active nudge (if any)
+      if (!chatOpen) {
+        return (
+          <PhoneFrame>
+            <StatusBar />
+            <PatientDashboard
+              lang={lang}
+              onOpenChat={onOpenChat}
+              onSelectJob={onSelectJob}
+              activeScenario={nudgeScenario}
+              nudgeVisible={nudgeVisible}
+              onNudgeDismiss={onNudgeDismiss}
+              onNudgeOpen={onNudgeOpen}
+            />
+          </PhoneFrame>
+        );
+      }
+
+      // Chat open, no job/scenario selected: show welcome screen with close X
+      if (!activeJob && !activeScenario) {
+        return (
+          <PhoneFrame>
+            <StatusBar />
+            <WelcomeScreen
+              lang={lang}
+              setLang={setLang}
+              onSelectJob={onSelectJob}
+              onCloseChat={onCloseChat}
+            />
+          </PhoneFrame>
+        );
+      }
+
+      return (
+        <PhoneFrame>
+          <StatusBar />
+
+          {/* Chat header */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+            <button onClick={onBack} className="text-gray-600 p-1 -ml-1"><ChevronLeft /></button>
+            <div className="flex items-center gap-1.5">
+              <JirehBurst size={16} />
+              <span className="flex items-baseline">
+                <span className="text-sm font-light" style={{ color: CONFIG.brand.colorText }}>{CONFIG.brand.name}</span>
+                <span className="text-sm font-bold" style={{ color: CONFIG.brand.color }}>{CONFIG.brand.suffix}</span>
+              </span>
+            </div>
+            <div className="w-8" aria-hidden />
+          </div>
+
+          {/* Entry line — shows why the chat opened (scenario-driven only) */}
+          {activeScenario && (
+            <div
+              className="mx-4 mt-2.5 px-3 py-1.5 rounded-lg text-[11px] fade-in flex items-start gap-1.5 flex-shrink-0"
+              style={{ background: CONFIG.brand.colorSoft, color: CONFIG.brand.colorText }}
+            >
+              <Sparkle size={11} />
+              <span className="flex-1">{activeScenario.entryLine}</span>
+            </div>
+          )}
+
+          {/* Messages */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar px-4 py-3 space-y-3">
+            {showSavedContext && <SavedContextChip lang={lang} />}
+            {visible.map((m, i) => {
+              if (m.role === 'user') return <UserBubble key={i} text={m.text} />;
+              if (m.role === 'ai') return <AIBubble key={i} {...m} lang={lang} />;
+              if (m.role === 'ai-chips') return (
+                <ChipRow
+                  key={i}
+                  chips={m.chips}
+                  lang={lang}
+                  onTap={(c) => handleChip(c, m.stepIndex)}
+                />
+              );
+              if (m.role === 'card') return (
+                <ConfirmationCard
+                  key={i}
+                  card={m.card}
+                  lang={lang}
+                  onConfirm={() => handleConfirm(m.stepIndex)}
+                  onEdit={handleEdit}
+                />
+              );
+              if (m.role === 'hospitals') return (
+                <HospitalList key={i} hospitals={m.hospitals} lang={lang} />
+              );
+              if (m.role === 'amount-input') return (
+                <AmountInput key={i} hint={m.hint} onSubmit={handleAmountSubmit} />
+              );
+              return null;
+            })}
+            {isTyping && <TypingBubble />}
+          </div>
+
+          {/* Input */}
+          <div className="border-t border-gray-100 px-3 py-2.5">
+            <div className="flex items-center gap-2 bg-gray-50 rounded-full px-4 py-2">
+              <input
+                placeholder={strings.messagePlaceholder}
+                className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400"
+                readOnly
+              />
+              <button
+                className="w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: CONFIG.brand.color }}
+              ><SendIcon /></button>
+            </div>
+            <div className="text-[10px] text-gray-400 text-center mt-1.5">{strings.typeHint}</div>
+          </div>
+        </PhoneFrame>
+      );
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Right panel: job list
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const JobList = ({ lang, activeJobId, onSelectJob, onBack }) => {
+      const strings = CONFIG.strings[lang];
+      return (
+        <div className="w-[380px] flex flex-col">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{strings.tryAFlow}</h2>
+          <p className="text-sm text-gray-600 mb-5 leading-relaxed">{strings.tryAFlowSubtitle}</p>
+
+          <div className="space-y-2 flex-1">
+            {CONFIG.jobs.map((job) => {
+              const active = job.id === activeJobId;
+              return (
+                <button
+                  key={job.id}
+                  onClick={() => onSelectJob(job)}
+                  className={`w-full text-left rounded-2xl px-3 py-3 flex items-center gap-3 border transition ${
+                    active
+                      ? 'shadow-sm'
+                      : 'border-gray-200 hover:border-purple-200 hover:bg-white'
+                  }`}
+                  style={active ? {
+                    background: CONFIG.brand.colorSoft,
+                    borderColor: CONFIG.brand.color,
+                  } : {}}
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
+                    style={{
+                      background: active ? CONFIG.brand.color : '#F3F4F6',
+                      color: active ? 'white' : '#374151',
+                    }}
+                  >
+                    {job.number}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-gray-900">{t(job.title, lang)}</div>
+                    <div className="text-xs text-gray-500">{t(job.subtitle, lang)}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={onBack}
+            className="mt-4 flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-gray-700 border border-gray-200 hover:bg-white transition"
+          >
+            <RefreshIcon />
+            {strings.backToWelcome}
+          </button>
+
+          <div className="flex items-start gap-2 mt-4 text-xs text-gray-500 leading-relaxed">
+            <span className="text-emerald-600 mt-0.5"><InfoIcon /></span>
+            <span>{strings.footerPrinciple}</span>
+          </div>
+        </div>
+      );
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // App
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function App() {
+      const [lang, setLang] = useState(CONFIG.strings.EN ? 'EN' : 'SW');
+      const [activeJob, setActiveJob] = useState(null);
+      const [chatOpen, setChatOpen] = useState(false);
+      const [resetKey, setResetKey] = useState(0);
+
+      // v3 additions — proactive nudge state
+      const [currentScenarioId, setCurrentScenarioId] = useState(SCENARIOS[0].id);
+      const [nudgeVisible, setNudgeVisible] = useState(false);
+      const [activeScenario, setActiveScenario] = useState(null);
+
+      const currentScenario = SCENARIOS.find((s) => s.id === currentScenarioId);
+
+      // Runs a scenario from scratch: resets state, then either opens welcome
+      // (user-initiated) or fires the nudge after a short delay.
+      const runScenario = (id) => {
+        const scenario = SCENARIOS.find((s) => s.id === id);
+        setCurrentScenarioId(id);
+        setActiveJob(null);
+        setActiveScenario(null);
+        setNudgeVisible(false);
+        setChatOpen(false);
+        const isWelcome = scenario?.special === 'welcome';
+        setTimeout(() => {
+          if (isWelcome) {
+            setChatOpen(true);
+          } else {
+            setNudgeVisible(true);
+          }
+        }, isWelcome ? 120 : 1400);
+      };
+
+      // Run whichever scenario is selected on mount
+      useEffect(() => {
+        runScenario(currentScenarioId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+
+      const openChat = () => {
+        // User tapped FAB — open welcome screen (no scenario, no job)
+        setChatOpen(true);
+        setActiveJob(null);
+        setActiveScenario(null);
+        setNudgeVisible(false);
+      };
+
+      const closeChat = () => {
+        setChatOpen(false);
+        setActiveJob(null);
+        setActiveScenario(null);
+      };
+
+      const handleSelectJob = (job) => {
+        setChatOpen(true);
+        setActiveScenario(null);
+        if (activeJob?.id === job.id) {
+          setResetKey((k) => k + 1);
+        } else {
+          setActiveJob(job);
+          setResetKey((k) => k + 1);
+        }
+      };
+
+      const handleBack = () => {
+        // In a scenario chat → back closes chat entirely (no welcome for scenarios)
+        // In a job chat → back to welcome
+        if (activeScenario) {
+          closeChat();
+          return;
+        }
+        setActiveJob(null);
+      };
+
+      const handleNudgeDismiss = () => {
+        setNudgeVisible(false);
+      };
+
+      const handleNudgeOpen = () => {
+        setActiveScenario(currentScenario);
+        setActiveJob(null);
+        setChatOpen(true);
+        setResetKey((k) => k + 1);
+        setNudgeVisible(false);
+      };
+
+      const replayCurrentScenario = () => runScenario(currentScenarioId);
+
+      // Group scenarios by section for the sidebar
+      const scenarioSections = SCENARIOS.reduce((acc, sc) => {
+        (acc[sc.section] = acc[sc.section] || []).push(sc);
+        return acc;
+      }, {});
+
+      return (
+        <div className="min-h-screen py-8 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-12 items-start justify-center lg:justify-start">
+              <ChatPanel
+                activeJob={activeJob}
+                activeScenario={activeScenario}
+                nudgeScenario={currentScenario}
+                lang={lang}
+                setLang={setLang}
+                onBack={handleBack}
+                onSelectJob={handleSelectJob}
+                resetKey={resetKey}
+                chatOpen={chatOpen}
+                onOpenChat={openChat}
+                onCloseChat={closeChat}
+                nudgeVisible={nudgeVisible && !chatOpen}
+                onNudgeDismiss={handleNudgeDismiss}
+                onNudgeOpen={handleNudgeOpen}
+              />
+
+              {/* Demo controls sidebar (replaces the old "Try a flow" JobList) */}
+              <div className="w-[380px] flex flex-col">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Demo controls</h2>
+                <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+                  Pick a proactive nudge scenario. Wait ~1.4 s for it to appear on the phone, then tap it to run the chat flow — or tap the <strong>Ask Jireh</strong> FAB to open the assistant on your own (Welcome screen with 8 jobs).
+                </p>
+
+                <div className="space-y-4 flex-1">
+                  {Object.keys(scenarioSections).map((sectionName) => (
+                    <div key={sectionName}>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 px-1">
+                        {sectionName}
+                      </div>
+                      <div className="space-y-1.5">
+                        {scenarioSections[sectionName].map((sc, idx) => {
+                          const globalIdx = SCENARIOS.findIndex((s) => s.id === sc.id);
+                          const active = sc.id === currentScenarioId;
+                          const isWelcome = sc.special === 'welcome';
+                          return (
+                            <button
+                              key={sc.id}
+                              onClick={() => runScenario(sc.id)}
+                              className={`w-full text-left rounded-2xl px-3 py-2.5 flex items-center gap-3 border transition ${
+                                active ? 'shadow-sm' : 'border-gray-200 hover:border-purple-200 hover:bg-white'
+                              }`}
+                              style={active ? {
+                                background: CONFIG.brand.colorSoft,
+                                borderColor: CONFIG.brand.color,
+                              } : {}}
+                            >
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                style={{
+                                  background: active ? CONFIG.brand.color : '#F3F4F6',
+                                  color: active ? 'white' : '#374151',
+                                }}
+                              >
+                                {globalIdx + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-sm text-gray-900 leading-tight">
+                                  {sc.title}
+                                </div>
+                                <div className="text-[10px] text-gray-500 mt-0.5">
+                                  {isWelcome ? (
+                                    <span className="italic">No trigger — Welcome screen with 8 jobs</span>
+                                  ) : (
+                                    <>
+                                      Pattern: <span className="font-medium text-gray-700">
+                                        {sc.visualPattern === 'A' && 'Speech bubble'}
+                                        {sc.visualPattern === 'B' && 'Inline card'}
+                                        {sc.visualPattern === 'C' && 'Top banner'}
+                                        {sc.visualPattern === 'D' && 'FAB pulse'}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={replayCurrentScenario}
+                  className="mt-4 flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-gray-700 border border-gray-200 hover:bg-white transition"
+                >
+                  <RefreshIcon />
+                  Replay current scenario
+                </button>
+
+                <div className="flex items-start gap-2 mt-4 text-xs text-gray-500 leading-relaxed">
+                  <span className="text-emerald-600 mt-0.5"><InfoIcon /></span>
+                  <span>
+                    Tapping the <strong>FAB</strong> always opens the Welcome screen (8 jobs), regardless of which nudge is showing. The nudge and the FAB are two independent ways to reach the assistant.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="max-w-6xl mx-auto mt-8 text-center text-xs text-gray-500">
+              {CONFIG.strings[lang].footerCredit}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
