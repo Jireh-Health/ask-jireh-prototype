@@ -193,7 +193,7 @@
           id: 'ask-someone',
           number: 2,
           title: 'Get help paying',
-          subtitle: 'Send a PayLink to family',
+          subtitle: 'Send a PayLink to your Circle',
           welcomeChip: 'Get help paying',
         },
         {
@@ -222,9 +222,9 @@
         {
           id: 'send-money',
           number: 6,
-          title: 'Send cashback to family',
+          title: 'Send cashback to your Circle',
           subtitle: 'To your Circle',
-          welcomeChip: 'Send cashback to family',
+          welcomeChip: 'Send cashback to Circle',
         },
         {
           id: 'add-family',
@@ -306,7 +306,7 @@
           { role: 'user', text: 'What is a Circle?' },
           {
             role: 'ai',
-            text: "Your **Circle** is 4 slots for family - like a healthcare safety net. Members **share cashback**, **help pay each other's bills** via PayLinks, and can **grow the group's credit limit** together. Add anyone with a Safaricom number.",
+            text: "Your **Circle** is 4 slots for the people you'd want backing you up in healthcare - family, friends, colleagues, mentors, whoever you choose. Members **share cashback**, **help pay each other's bills** via PayLinks, and can **grow the group's credit limit** together. Add anyone with a Safaricom number.",
           },
           {
             role: 'ai-chips',
@@ -457,14 +457,14 @@
         //   9891e3e9 on develop, 2026-08-25). Uses case/whitespace-insensitive
         //   dedup - real dependency matching pattern.
         'add-family': [
-          { role: 'ai', text: 'Your **Circle** is a family safety net. Members share cashback, help each other pay bills, and grow the group\'s credit limit together.' },
+          { role: 'ai', text: 'Your **Circle** is your healthcare safety net - up to 4 people you choose (family, friends, colleagues, whoever). Members share cashback, help each other pay bills, and grow the group\'s credit limit together.' },
           { role: 'ai', text: 'Your Circle: **1 of 4 slots filled** (you). Who would you like to add?' },
           {
             role: 'ai-chips',
             chips: [
               { label: { EN: 'Add my mother', SW: 'Ongeza mama yangu' }, next: 3 },
-              { label: { EN: 'Add my child', SW: 'Ongeza mtoto wangu' }, next: 'terminal' },
-              { label: { EN: 'Add a sibling', SW: 'Ongeza kaka au dada' }, next: 'terminal' },
+              { label: { EN: 'Add a friend', SW: 'Ongeza rafiki' }, next: 'terminal' },
+              { label: { EN: 'Add someone else', SW: 'Ongeza mtu mwingine' }, next: 'terminal' },
             ],
           },
           { role: 'user', text: 'Add my mother' },
@@ -1323,21 +1323,21 @@
         title: 'Introduce Circle to solo users',
         section: 'Solo user',
         visualPattern: 'D',
-        nudgeContent: { label: '3 solo bills this quarter' },
+        nudgeContent: { label: 'Split bills with your Circle' },
         entryLine: 'Opened from a subtle FAB hint.',
         chatScript: [
-          { role: 'ai', text: "Habari Amani. You've paid **3 bills solo** this quarter - no PayLink share, no family help. Want a quick look at what having a Circle would actually do for you?" },
+          { role: 'ai', text: "Habari Amani. You've handled **3 bills on your own** this quarter. Want a quick look at what having a Circle would actually do for you?" },
           { role: 'user', text: 'Show me' },
           { role: 'ai', text: 'In your case, a Circle would let you:' },
           {
             role: 'ai',
             bullets: [
-              '**Split bills** - send a PayLink to family who can cover part of a big bill',
-              '**Share Care Fund** - you or family can gift some balance to each other',
-              '**Emergency backup** - when M-Pesa runs low mid-month, family can PayLink you directly',
+              '**Split bills** - send a PayLink to someone in your Circle who can cover part of a big bill',
+              '**Share Care Fund** - you or your Circle can gift some balance to each other',
+              '**Emergency backup** - when M-Pesa runs low mid-month, your Circle can PayLink you directly',
             ],
           },
-          { role: 'ai', text: 'The 3 bills you paid alone this quarter totalled **KES 12,700** out of pocket. Even one family member could have covered part of that.' },
+          { role: 'ai', text: 'The 3 bills you paid this quarter totalled **KES 12,700** out of pocket. Even one person in your Circle could have covered part of that.' },
           { role: 'user', text: 'Who should I add?' },
           { role: 'ai', text: 'Who do you turn to when things get tight? Start there.' },
           {
@@ -1368,14 +1368,14 @@
         section: 'Solo user',
         visualPattern: 'A',
         nudgeContent: {
-          text: "**KES 5,000 sorted.** Want to add family to your Circle so they can pitch in too on future healthcare costs?",
-          ctaLabel: 'Invite family',
+          text: "**KES 5,000 sorted.** Want to add someone to your Circle so they can pitch in too on future healthcare costs?",
+          ctaLabel: 'Add to Circle',
         },
         entryLine: 'Opened right after a 0% loan disbursed.',
         chatScript: [
           { role: 'ai', text: "The **KES 5,000** is on its way to your M-Pesa - nicely done." },
-          { role: 'ai', text: "Whenever you'd like, adding family to your Circle brings more hands to your healthcare journey - they can share costs when they're able to. Want to invite someone?" },
-          { role: 'ai', text: "Even one family member makes a real difference. Anyone come to mind?" },
+          { role: 'ai', text: "Whenever you'd like, growing your Circle brings more hands to your healthcare journey - people who can share costs when they're able to. Want to invite someone?" },
+          { role: 'ai', text: "Even one person in your Circle makes a real difference. Anyone come to mind?" },
           { role: 'user', text: 'David - my brother' },
           { role: 'ai', text: 'Draft ready for David:' },
           {
