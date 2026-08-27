@@ -700,7 +700,7 @@
           // 3
           { role: 'ai', text: 'You have one open payment request from a nurse:' },
           // 4
-          { role: 'ai', text: '**Kisima Hospital** - visit 18 Jul\nSent by Nurse M. Otieno\nBalance **KES 4,500**, due in 2 days.' },
+          { role: 'ai', text: '**Kisima Hospital**\nBalance **KES 4,500**, due in 2 days.' },
           // 5
           {
             role: 'ai-chips',
@@ -1239,13 +1239,12 @@
         section: 'Incoming request',
         visualPattern: 'C',
         nudgeContent: {
-          text: '**Nurse M.** at **Kisima School Clinic** sent a KES 850 request for **Kimathi**.',
-          subtitle: 'Bumped knee · bandage + antiseptic.',
+          text: '**Kisima School Clinic** sent a **KES 850** payment request for **Kimathi**.',
           ctaLabel: 'Review',
         },
         entryLine: 'Opened from a school clinic payment request notification.',
         chatScript: [
-          { role: 'ai', text: "Nurse M. Otieno at **Kisima School Clinic** sent this - a payment request for **Kimathi**. He bumped his knee at school; the clinic gave him a bandage and antiseptic. Total **KES 850**." },
+          { role: 'ai', text: "You have a **KES 850** payment request from **Kisima School Clinic** for **Kimathi**." },
           { role: 'ai', text: 'Your **Care Fund** has **KES 2,050** - enough to cover this without touching M-Pesa at all.' },
           { role: 'ai', text: 'Please review before we send:' },
           {
@@ -1369,13 +1368,14 @@
         section: 'Solo user',
         visualPattern: 'A',
         nudgeContent: {
-          text: 'Got the loan sorted. Want family backup so you might not need one next time?',
-          ctaLabel: 'Show me how',
+          text: "You've got the loan. Whenever you're ready, I can help you set up your Circle so family can lean in for the next one.",
+          ctaLabel: 'Tell me more',
         },
         entryLine: 'Opened right after a 0% loan disbursed.',
         chatScript: [
-          { role: 'ai', text: 'The **KES 5,000** is in your M-Pesa. Quick thought for next time - if you had a Circle, you might not have needed the loan at all. Family could have PayLinked you the same amount, no repayment schedule needed.' },
-          { role: 'ai', text: 'Adding one person is enough to have a backup. Who comes to mind?' },
+          { role: 'ai', text: 'The **KES 5,000** is on its way to your M-Pesa - great job getting that sorted.' },
+          { role: 'ai', text: "When you have a moment, I can show you how a Circle would let family pitch in directly on future bills. No pressure, and no rush - it's there if you want it." },
+          { role: 'ai', text: "Even one family member is enough to make a difference. Anyone come to mind?" },
           { role: 'user', text: 'David - my brother' },
           { role: 'ai', text: 'Draft ready for David:' },
           {
