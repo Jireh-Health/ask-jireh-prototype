@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jireh Health — AI Assistant Prototype (v3 · nudges + user-initiated)</title>
+  <title>Jireh Health - AI Assistant Prototype (v3 · nudges + user-initiated)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -45,25 +45,25 @@
     const { useState, useEffect, useRef, useMemo } = React;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // CONFIG — edit anything below to customize the prototype
+    // CONFIG - edit anything below to customize the prototype
     // ═══════════════════════════════════════════════════════════════════════
 
     const CONFIG = {
       brand: {
         name: 'jireh',
         suffix: 'health',
-        // Real Jireh brand tokens — pulled from jireh-core-client & healthcare-portal.
+        // Real Jireh brand tokens - pulled from jireh-core-client & healthcare-portal.
         color: '#B325FF',       // primary purple (from logo.svg)
         colorLight: '#DFACFF',  // secondary purple (logo halo)
         colorSoft: '#F5E6FF',   // pale-lavender for chip/pill backgrounds
         colorText: '#8B00E6',   // darker purple for text on light bg
 
-        // Decorative teal — the custom `jh-teal` (#75d6d4) from tailwind.config.js.
+        // Decorative teal - the custom `jh-teal` (#75d6d4) from tailwind.config.js.
         // Only used in the app for the payment-point poster illustration, so we
         // reserve it here for waves + welcome-burst halo only.
         teal: '#75D6D4',
 
-        // Semantic paid/received teal — Tailwind teal-100 / teal-700, matching
+        // Semantic paid/received teal - Tailwind teal-100 / teal-700, matching
         // healthcare-portal's PaymentRequestStatusBadge (the ONLY place teal
         // carries a status meaning in the app). Reuse these exact hex values so
         // the future <PaidPill> can drop in `bg-teal-100 text-teal-700` classes.
@@ -75,7 +75,7 @@
       },
 
       user: {
-        name: 'Njeri',
+        name: 'Amani',
         // Shown as a chip inside the chat when a health topic activates it
         savedContext: 'managing hypertension',
         mpesaLast4: '7788',
@@ -91,17 +91,17 @@
       strings: {
         EN: {
           tryAFlow: 'Try a flow',
-          tryAFlowSubtitle: "Flows are grouped by journey stage — payment first, then discovery, then how you give back, then learn. Tap any flow to play it as a guided chat.",
+          tryAFlowSubtitle: "Flows are grouped by journey stage - payment first, then discovery, then how you give back, then learn. Tap any flow to play it as a guided chat.",
           backToWelcome: 'Back to welcome screen',
-          footerPrinciple: 'Jireh explains & composes — but the moment money moves, you drop into a confirmation card. The assistant never touches the payment.',
+          footerPrinciple: 'Jireh explains & composes - but the moment money moves, you drop into a confirmation card. The assistant never touches the payment.',
           disclaimer: 'General wellness guidance, not medical advice. For anything specific to your treatment, talk to a clinician.',
           disclaimerFinancial: 'Approved on your Jireh standing. You can repay early any time with no penalty.',
           disclaimerPrivacy: 'The recipient sees the provider and amount only. Treatment details stay private.',
           messagePlaceholder: 'Message Jireh…',
-          typeHint: 'Type, tap a suggestion, or hold the mic — English or Kiswahili.',
+          typeHint: 'Type, tap a suggestion, or hold the mic - English or Kiswahili.',
           savedContextLabel: 'Saved context',
-          stubTerminal: 'Happy to help with that — this branch would continue in the full product.',
-          footerCredit: 'jireh health — prototype for demonstration only. Bills, contacts, and M-Pesa flows are simulated. Brand-styled per the Jireh Health guidelines.',
+          stubTerminal: 'Happy to help with that - this branch would continue in the full product.',
+          footerCredit: 'jireh health - prototype for demonstration only. Bills, contacts, and M-Pesa flows are simulated. Brand-styled per the Jireh Health guidelines.',
           welcomeGreeting: 'Hi {name}!',
           welcomeSubtitle: 'Where shall we start?',
           welcomePlaceholder: 'Ask Jireh anything…',
@@ -135,15 +135,15 @@
           tryAFlow: 'Jaribu mtiririko',
           tryAFlowSubtitle: 'Ukurasa wa kuanza unaingiza kwenye msaidizi wa mazungumzo wa Jireh. Gonga kazi yoyote kuicheza kama mazungumzo yaliyoongozwa.',
           backToWelcome: 'Rudi kwenye ukurasa wa kuanza',
-          footerPrinciple: 'Jireh anaeleza na kutayarisha — lakini pesa inapohamishwa, unaingia kwenye kadi ya uthibitisho. Msaidizi hagusi malipo kamwe.',
+          footerPrinciple: 'Jireh anaeleza na kutayarisha - lakini pesa inapohamishwa, unaingia kwenye kadi ya uthibitisho. Msaidizi hagusi malipo kamwe.',
           disclaimer: 'Ushauri wa kiafya wa jumla, si ushauri wa matibabu. Kwa jambo lolote mahsusi kwa matibabu yako, ongea na daktari.',
           disclaimerFinancial: 'Imeidhinishwa kulingana na hali yako ya Jireh. Unaweza kulipa mapema wakati wowote bila adhabu.',
           disclaimerPrivacy: 'Mpokeaji anaona jina la hospitali na kiasi tu. Maelezo ya matibabu yanabaki siri.',
           messagePlaceholder: 'Andika kwa Jireh…',
-          typeHint: 'Andika, gonga pendekezo, au shikilia maikrofoni — Kiingereza au Kiswahili.',
+          typeHint: 'Andika, gonga pendekezo, au shikilia maikrofoni - Kiingereza au Kiswahili.',
           savedContextLabel: 'Kumbukumbu iliyohifadhiwa',
-          stubTerminal: 'Nafurahi kusaidia — tawi hili litaendelea katika bidhaa kamili.',
-          footerCredit: 'jireh health — mfano wa maonyesho tu. Bili, waasiliani na M-Pesa vinaonyeshwa kama mifano.',
+          stubTerminal: 'Nafurahi kusaidia - tawi hili litaendelea katika bidhaa kamili.',
+          footerCredit: 'jireh health - mfano wa maonyesho tu. Bili, waasiliani na M-Pesa vinaonyeshwa kama mifano.',
           welcomeGreeting: 'Habari {name}!',
           welcomeSubtitle: 'Tuanze na nini?',
           welcomePlaceholder: 'Ulize Jireh chochote…',
@@ -251,7 +251,7 @@
       scripts: {
         // ─── Health companion ──────────────────────────────────────────────
         'health': [
-          { role: 'ai', text: "Hi Sheila — I can share general wellness guidance, and connect you to a Jireh partner doctor for anything specific to your treatment. What's on your mind?" },
+          { role: 'ai', text: "Hi Sheila - I can share general wellness guidance, and connect you to a Jireh partner doctor for anything specific to your treatment. What's on your mind?" },
           {
             role: 'ai-chips',
             chips: [
@@ -262,7 +262,7 @@
           { role: 'user', text: 'I have high blood pressure. Can I eat nyama choma?', savedContext: true },
           {
             role: 'ai',
-            text: 'Yes — you can enjoy **nyama choma** in moderation. Since you\'re managing high blood pressure:',
+            text: 'Yes - you can enjoy **nyama choma** in moderation. Since you\'re managing high blood pressure:',
             bullets: [
               'Choose **leaner cuts** and trim visible fat.',
               'Go easy on the **salt and kachumbari salt**.',
@@ -295,35 +295,35 @@
           { role: 'user', text: 'How does cashback work?' },
           {
             role: 'ai',
-            text: "Every M-Pesa payment to a Jireh **partner facility** earns **5% back as cashback**. Use it on your next bill, save it in your **Care Fund**, or **share it with your Circle**. Cashback expires 12 months after you earn it — so use it or share it.",
+            text: "Every M-Pesa payment to a Jireh **partner facility** earns **5% back as cashback**. Use it on your next bill, save it in your **Care Fund**, or **share it with your Circle**. Cashback expires 12 months after you earn it - so use it or share it.",
           },
           {
             role: 'ai-chips',
             chips: [
-              { label: { EN: 'Got it — back to home', SW: 'Nimeelewa — rudi nyumbani' }, next: 'restart' },
+              { label: { EN: 'Got it - back to home', SW: 'Nimeelewa - rudi nyumbani' }, next: 'restart' },
             ],
           },
           { role: 'user', text: 'What is a Circle?' },
           {
             role: 'ai',
-            text: "Your **Circle** is 4 slots for family — like a healthcare safety net. Members **share cashback**, **help pay each other's bills** via PayLinks, and can **grow the group's credit limit** together. Add anyone with a Safaricom number.",
+            text: "Your **Circle** is 4 slots for family - like a healthcare safety net. Members **share cashback**, **help pay each other's bills** via PayLinks, and can **grow the group's credit limit** together. Add anyone with a Safaricom number.",
           },
           {
             role: 'ai-chips',
             chips: [
-              { label: { EN: 'Got it — back to home', SW: 'Nimeelewa — rudi nyumbani' }, next: 'restart' },
+              { label: { EN: 'Got it - back to home', SW: 'Nimeelewa - rudi nyumbani' }, next: 'restart' },
             ],
           },
           { role: 'user', text: 'Is my data private?' },
           {
             role: 'ai',
-            text: "Yes. Health topics stay private. When you share a bill with someone via PayLink, they see the **provider and amount only** — no treatment details. Health context you share with me isn't tied to your bill or Circle members.",
+            text: "Yes. Health topics stay private. When you share a bill with someone via PayLink, they see the **provider and amount only** - no treatment details. Health context you share with me isn't tied to your bill or Circle members.",
             disclaimer: 'privacy',
           },
           {
             role: 'ai-chips',
             chips: [
-              { label: { EN: 'Got it — back to home', SW: 'Nimeelewa — rudi nyumbani' }, next: 'restart' },
+              { label: { EN: 'Got it - back to home', SW: 'Nimeelewa - rudi nyumbani' }, next: 'restart' },
             ],
           },
         ],
@@ -331,19 +331,19 @@
         // ─── Share cashback with your Circle ───────────────────────────────
         //   Real Jireh flow (recent PR #713 on jireh-core-client): cmdk Circle
         //   picker → fractional-safe amount → confirm → recipient's cashback
-        //   balance grows. Cashback moves inside Jireh — no STK, no M-Pesa PIN.
+        //   balance grows. Cashback moves inside Jireh - no STK, no M-Pesa PIN.
         'send-money': [
-          { role: 'ai', text: 'You have **KES 850 in cashback**. Share some with your Circle — it lands in their cashback balance.' },
+          { role: 'ai', text: 'You have **KES 850 in cashback**. Share some with your Circle - it lands in their cashback balance.' },
           { role: 'ai', text: 'Who in your Circle should get some?' },
           {
             role: 'ai-chips',
             chips: [
-              { label: { EN: 'Mary — my sister', SW: 'Mary — dada yangu' }, next: 3 },
-              { label: { EN: 'Grace — my mother', SW: 'Grace — mama yangu' }, next: 'terminal' },
+              { label: { EN: 'Mary - my sister', SW: 'Mary - dada yangu' }, next: 3 },
+              { label: { EN: 'Grace - my mother', SW: 'Grace - mama yangu' }, next: 'terminal' },
               { label: { EN: 'Someone else', SW: 'Mtu mwingine' }, next: 'terminal' },
             ],
           },
-          { role: 'user', text: 'Mary — my sister' },
+          { role: 'user', text: 'Mary - my sister' },
           { role: 'ai', text: 'How much should Mary receive?' },
           {
             role: 'ai-chips',
@@ -375,7 +375,7 @@
               secondary: { EN: 'Edit', SW: 'Hariri' },
             },
           },
-          { role: 'ai', text: 'Cashback moves inside Jireh — no M-Pesa PIN needed.' },
+          { role: 'ai', text: 'Cashback moves inside Jireh - no M-Pesa PIN needed.' },
           {
             role: 'ai',
             pill: { EN: 'Shared', SW: 'Imeshirikiwa' },
@@ -393,7 +393,7 @@
 
         // ─── Borrow for treatment ──────────────────────────────────────────
         //   Real Jireh 0% treatment loan (Fast Track): credit line pre-approved
-        //   on Jireh standing; M-Pesa B2C disbursement — the user receives,
+        //   on Jireh standing; M-Pesa B2C disbursement - the user receives,
         //   they don't authorise with a PIN. Repayment in equal instalments,
         //   with cashback earned as you repay.
         'borrow': [
@@ -412,7 +412,7 @@
             ],
           },
           { role: 'user', text: 'KES 5,000' },
-          { role: 'ai', text: "Here's your plan. **No interest, ever** — and you earn cashback on every repayment." },
+          { role: 'ai', text: "Here's your plan. **No interest, ever** - and you earn cashback on every repayment." },
           {
             role: 'card',
             card: {
@@ -432,7 +432,7 @@
           },
           {
             role: 'ai',
-            text: 'Approved on your Jireh standing. **Disbursing to your M-Pesa now — no PIN needed to receive.**',
+            text: 'Approved on your Jireh standing. **Disbursing to your M-Pesa now - no PIN needed to receive.**',
             disclaimer: 'financial',
           },
           {
@@ -455,7 +455,7 @@
         //   other's bills, and can grow the group's credit limit. Matches the
         //   recent 4-slot avatar-chain redesign on jireh-core-client (commit
         //   9891e3e9 on develop, 2026-08-25). Uses case/whitespace-insensitive
-        //   dedup — real dependency matching pattern.
+        //   dedup - real dependency matching pattern.
         'add-family': [
           { role: 'ai', text: 'Your **Circle** is a family safety net. Members share cashback, help each other pay bills, and grow the group\'s credit limit together.' },
           { role: 'ai', text: 'Your Circle: **1 of 4 slots filled** (you). Who would you like to add?' },
@@ -500,7 +500,7 @@
                 { label: 'Receive requests', value: 'Yes' },
                 { label: 'Pay on your behalf', value: 'No' },
               ],
-              primary: { EN: 'Confirm — add to Circle', SW: 'Thibitisha — ongeza kwenye Circle' },
+              primary: { EN: 'Confirm - add to Circle', SW: 'Thibitisha - ongeza kwenye Circle' },
               secondary: { EN: 'Change', SW: 'Badilisha' },
             },
           },
@@ -522,14 +522,14 @@
         ],
 
         // ─── Find a hospital ───────────────────────────────────────────────
-        //   Two entry paths — matches how patients discover care in Jireh:
+        //   Two entry paths - matches how patients discover care in Jireh:
         //   1) Search by service near me → partner-first list with payment
         //      point codes visible (so a patient can walk in and pay directly)
         //   2) Enter a payment point code the nurse gave them (the 4–6 letter
-        //      code on the facility's Jireh payment poster — see recent
+        //      code on the facility's Jireh payment poster - see recent
         //      PaymentPointPosterGenerator work)
         'find-hospital': [
-          { role: 'ai', text: 'I can find care two ways — search by what you need, or enter a **payment point code** if you already know where.' },
+          { role: 'ai', text: 'I can find care two ways - search by what you need, or enter a **payment point code** if you already know where.' },
           {
             role: 'ai-chips',
             chips: [
@@ -553,7 +553,7 @@
             role: 'hospitals',
             hospitals: [
               {
-                name: 'Kisima Hospital — Physio Unit',
+                name: 'Kisima Hospital - Physio Unit',
                 distance: '1.2 km',
                 specialties: { EN: 'Physiotherapy, sports injury, post-op rehab', SW: 'Tiba ya viungo, majeraha ya michezo' },
                 partner: true,
@@ -569,7 +569,7 @@
               {
                 name: 'Kilimani Medical Plaza',
                 distance: '0.8 km',
-                specialties: { EN: 'Visiting physio (Tue/Thu) — not a Jireh partner', SW: 'Daktari wa viungo (Jumanne/Alhamisi) — si mshirika' },
+                specialties: { EN: 'Visiting physio (Tue/Thu) - not a Jireh partner', SW: 'Daktari wa viungo (Jumanne/Alhamisi) - si mshirika' },
                 partner: false,
               },
             ],
@@ -578,12 +578,12 @@
             role: 'ai-chips',
             chips: [
               { label: { EN: 'Start payment at Kisima', SW: 'Anza malipo Kisima' }, next: 'terminal' },
-              { label: { EN: 'Get estimate — Uzima', SW: 'Pata makadirio — Uzima' }, next: 'terminal' },
+              { label: { EN: 'Get estimate - Uzima', SW: 'Pata makadirio - Uzima' }, next: 'terminal' },
               { label: { EN: 'Back to home', SW: 'Rudi nyumbani' }, next: 'restart' },
             ],
           },
           { role: 'user', text: 'Enter payment point code' },
-          { role: 'ai', text: "Look at the payment point poster at reception — it's the 4–6 letter code above the M-Pesa till. What's the code?" },
+          { role: 'ai', text: "Look at the payment point poster at reception - it's the 4–6 letter code above the M-Pesa till. What's the code?" },
           {
             role: 'ai-chips',
             chips: [
@@ -592,7 +592,7 @@
             ],
           },
           { role: 'user', text: 'KISIMA' },
-          { role: 'ai', text: 'Matched **Kisima Hospital — Physio Unit** (Jireh Partner, 1.2 km). Ready to start a payment?' },
+          { role: 'ai', text: 'Matched **Kisima Hospital - Physio Unit** (Jireh Partner, 1.2 km). Ready to start a payment?' },
           {
             role: 'ai-chips',
             chips: [
@@ -609,24 +609,24 @@
         //   they pay, our webhook (markPaymentLinkPaidIfLinked) settles the
         //   bill and we notify the sender.
         'ask-someone': [
-          { role: 'ai', text: "I'll send a **PayLink** on WhatsApp. The recipient pays with M-Pesa directly — **no Jireh account needed on their side**." },
+          { role: 'ai', text: "I'll send a **PayLink** on WhatsApp. The recipient pays with M-Pesa directly - **no Jireh account needed on their side**." },
           { role: 'ai', text: 'Who would you like to ask?' },
           {
             role: 'ai-chips',
             chips: [
-              { label: { EN: 'David — my brother', SW: 'David — kaka yangu' }, next: 3 },
+              { label: { EN: 'David - my brother', SW: 'David - kaka yangu' }, next: 3 },
               { label: { EN: 'Someone else', SW: 'Mtu mwingine' }, next: 'terminal' },
             ],
           },
-          { role: 'user', text: 'David — my brother' },
+          { role: 'user', text: 'David - my brother' },
           { role: 'ai', text: 'Which bill would you like David to help with?' },
           {
             role: 'ai-chips',
             chips: [
-              { label: { EN: 'Kisima Hospital — KES 4,500', SW: 'Kisima Hospital — KES 4,500' }, next: 6 },
+              { label: { EN: 'Kisima Hospital - KES 4,500', SW: 'Kisima Hospital - KES 4,500' }, next: 6 },
             ],
           },
-          { role: 'user', text: 'Kisima Hospital — KES 4,500' },
+          { role: 'user', text: 'Kisima Hospital - KES 4,500' },
           { role: 'ai', text: 'How much should I ask David to send?' },
           {
             role: 'ai-chips',
@@ -675,10 +675,10 @@
 
         // ─── Pay a hospital bill ───────────────────────────────────────────
         //   Two real Jireh entry points:
-        //   1) Pay an open payment request — a PayLink created by a nurse.
+        //   1) Pay an open payment request - a PayLink created by a nurse.
         //      Comes with a bill amount, provider, and due date (see
         //      healthcare-portal's PaymentRequests + markPaymentLinkPaidIfLinked).
-        //   2) Start a new payment — patient walks into a facility that isn't
+        //   2) Start a new payment - patient walks into a facility that isn't
         //      integrated, enters the payment point code from the payment
         //      poster (see PaymentPointPosterGenerator), types the amount.
         'pay-bill': [
@@ -700,7 +700,7 @@
           // 3
           { role: 'ai', text: 'You have one open payment request from a nurse:' },
           // 4
-          { role: 'ai', text: '**Kisima Hospital** — visit 18 Jul\nSent by Nurse M. Otieno\nBalance **KES 4,500**, due in 2 days.' },
+          { role: 'ai', text: '**Kisima Hospital** - visit 18 Jul\nSent by Nurse M. Otieno\nBalance **KES 4,500**, due in 2 days.' },
           // 5
           {
             role: 'ai-chips',
@@ -775,7 +775,7 @@
                 { label: 'Care Fund applied', value: '- KES 1,200' },
                 { label: 'M-Pesa · · · 7788', value: 'KES 2,000', bold: true },
               ],
-              primary: { EN: 'Confirm — send M-Pesa', SW: 'Thibitisha — tuma M-Pesa' },
+              primary: { EN: 'Confirm - send M-Pesa', SW: 'Thibitisha - tuma M-Pesa' },
               secondary: { EN: 'Edit', SW: 'Hariri' },
             },
           },
@@ -788,7 +788,7 @@
           {
             role: 'ai',
             pill: { EN: 'Paid', SW: 'Imelipwa' },
-            text: '**KES 4,500 to Kisima Hospital** — settled from M-Pesa, Cashback, and Care Fund.\nYou earned **KES 100 new cashback** (5% of M-Pesa portion).',
+            text: '**KES 4,500 to Kisima Hospital** - settled from M-Pesa, Cashback, and Care Fund.\nYou earned **KES 100 new cashback** (5% of M-Pesa portion).',
             simulateDelay: 1600,
           },
           // 19
@@ -805,7 +805,7 @@
           // 20
           { role: 'user', text: 'Start a new payment' },
           // 21
-          { role: 'ai', text: "Which facility? Enter the **payment point code** — the 4–6 letter code on the facility's payment poster or M-Pesa till." },
+          { role: 'ai', text: "Which facility? Enter the **payment point code** - the 4–6 letter code on the facility's payment poster or M-Pesa till." },
           // 22
           {
             role: 'ai-chips',
@@ -818,7 +818,7 @@
           // 23
           { role: 'user', text: 'KISIMA' },
           // 24
-          { role: 'ai', text: 'Matched **Kisima Hospital — Physio Unit** (Jireh Partner).\nHow much are you paying?' },
+          { role: 'ai', text: 'Matched **Kisima Hospital - Physio Unit** (Jireh Partner).\nHow much are you paying?' },
           // 25
           {
             role: 'ai-chips',
@@ -861,7 +861,7 @@
                 { label: 'Transaction fee', value: 'KES 0' },
                 { label: 'Pay with', value: 'M-Pesa · · · 7788', bold: true },
               ],
-              primary: { EN: 'Confirm — send M-Pesa', SW: 'Thibitisha — tuma M-Pesa' },
+              primary: { EN: 'Confirm - send M-Pesa', SW: 'Thibitisha - tuma M-Pesa' },
               secondary: { EN: 'Edit', SW: 'Hariri' },
             },
           },
@@ -924,7 +924,7 @@
       </svg>
     );
 
-    /** Real Jireh burst mark — extracted from jireh-core-client/src/assets/icons/logo.svg */
+    /** Real Jireh burst mark - extracted from jireh-core-client/src/assets/icons/logo.svg */
     const JirehBurst = ({ size = 24, className = '', color, colorLight }) => (
       <svg width={size} height={size} viewBox="0 0 22 22" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
         <path d="M13.0863 0.0129242C13.6341 0.190327 15.6022 1.32376 16.2252 1.67198C16.1592 3.38059 16.1025 5.08956 16.0554 6.79882C16.7598 5.57071 17.4826 4.26487 18.2298 3.06911C18.6908 3.79229 19.269 4.91974 19.6747 5.69234C18.9661 6.95812 18.0598 8.37673 17.4243 9.657C18.2756 9.06777 20.2907 7.95141 21.2296 7.44836C21.3185 8.31592 21.3015 10.0466 21.3328 11.0008C20.3982 11.6208 17.8624 12.8844 16.7815 13.4602L21.1362 13.4616C20.6218 14.325 20.1004 15.1842 19.572 16.039C18.0318 16.0454 16.4915 16.0421 14.9514 16.029C15.9646 16.5253 17.8447 17.6425 18.8067 18.2529C17.9057 18.8713 16.726 19.5477 15.7768 20.1248C14.3501 19.2969 12.7791 18.2842 11.377 17.4009C12.1198 18.6507 12.8486 19.9089 13.5633 21.1751C12.5631 21.1669 11.5628 21.153 10.5628 21.1335C9.79227 19.8224 9.03561 18.5032 8.29285 17.1761C8.27779 17.9598 8.39431 21.0647 8.18837 21.5593C7.16841 21.0053 6.11718 20.4487 5.11668 19.8651C5.15789 18.1697 5.21165 16.4745 5.2778 14.7799C4.56818 15.7999 3.8139 17.3558 3.08721 18.4858L1.6458 15.8671C2.12086 14.9085 3.36621 12.832 3.95218 11.9008C2.72772 12.5496 1.32169 13.4088 0.105332 14.1125C0.0239299 12.9385 0.0203487 11.7017 0 10.5202C1.47798 9.71133 3.04434 8.84182 4.54433 8.08874C3.09723 8.10784 1.64997 8.10452 0.203033 8.07873C0.674901 7.23552 1.23788 6.35009 1.74624 5.52035L6.30784 5.5215C5.29538 4.78435 3.60962 4.07775 2.54636 3.26783C3.20582 2.77327 4.81195 1.85924 5.55874 1.41389C6.97083 2.24003 8.46975 3.20659 9.87024 4.07264C9.47284 3.17092 8.30301 1.37081 7.76158 0.342499C8.75387 0.354027 9.76366 0.387242 10.7573 0.410227C11.5277 1.72162 12.2905 3.03756 13.0455 4.35781C13.0442 3.22222 12.9811 1.07785 13.0863 0.0129242Z" fill={colorLight || CONFIG.brand.colorLight} />
@@ -932,7 +932,7 @@
       </svg>
     );
 
-    /** "jireh health" wordmark from the same logo.svg — used on welcome screen. */
+    /** "jireh health" wordmark from the same logo.svg - used on welcome screen. */
     const JirehWordmark = ({ height = 22 }) => (
       <svg height={height} viewBox="30 0 108 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path fillRule="evenodd" clipRule="evenodd" d="M92.4458 5.75668C95.31 5.759 97.7635 7.70549 98.3385 10.5275C98.5114 11.376 98.5107 12.0147 98.5013 12.8702L87.8298 12.8731C88.2895 16.3105 90.9167 18.0462 94.3394 16.9126C95.1118 16.6567 95.7329 16.0697 96.251 15.4546C96.5904 14.9661 96.7727 14.5247 96.9579 13.9678L98.4358 13.9736C97.6597 16.6583 96.1033 18.3629 93.1959 18.7313C87.2318 19.4871 84.3142 12.4312 87.6936 8.03058C88.7715 6.62662 90.2365 5.97812 91.9997 5.77399C92.1474 5.75093 92.2981 5.75682 92.4458 5.75668ZM97.0105 11.4963C96.6012 8.68194 94.7213 7.04699 91.852 7.27869C89.5153 7.61705 88.2175 9.23053 87.9171 11.4969L93.2197 11.4993L97.0105 11.4963Z" fill={CONFIG.brand.colorLight} />
@@ -1062,7 +1062,7 @@
         <circle cx="19" cy="19" r="1.3" fill={CONFIG.brand.paidText}/>
       </svg>
     );
-    // Bottom tab icons — Home reused above; Circle / Explore / Profile follow.
+    // Bottom tab icons - Home reused above; Circle / Explore / Profile follow.
     const CircleTabIcon = ({ active }) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
         <circle cx="12" cy="12" r="9" />
@@ -1083,10 +1083,10 @@
     );
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Proactive AI nudges (v3 addition) — 4 visual patterns + 7 scenarios
+    // Proactive AI nudges (v3 addition) - 4 visual patterns + 7 scenarios
     // ═══════════════════════════════════════════════════════════════════════
 
-    /** Pattern A — Speech bubble anchored to the FAB */
+    /** Pattern A - Speech bubble anchored to the FAB */
     const SpeechBubbleNudge = ({ onDismiss, onOpen, content }) => (
       <div className="absolute z-40 soft-pop" style={{ bottom: '105px', right: '14px', width: '240px' }}>
         <button
@@ -1120,7 +1120,7 @@
       </div>
     );
 
-    /** Pattern B — Inline dashboard card */
+    /** Pattern B - Inline dashboard card */
     const InlineCardNudge = ({ onDismiss, onOpen, content }) => (
       <div
         className="mx-4 rounded-2xl p-3.5 border relative fade-in"
@@ -1164,7 +1164,7 @@
       </div>
     );
 
-    /** Pattern C — Top banner sliding down from below the header */
+    /** Pattern C - Top banner sliding down from below the header */
     const TopBannerNudge = ({ onDismiss, onOpen, content }) => (
       <div
         className="px-3 py-2 flex items-center gap-2 relative slide-down border-b flex-shrink-0"
@@ -1201,7 +1201,7 @@
       </div>
     );
 
-    /** Pattern D — FAB pulse + small floating label */
+    /** Pattern D - FAB pulse + small floating label */
     const FABLabelNudge = ({ onDismiss, onOpen, content }) => (
       <div
         className="absolute soft-pop flex items-center gap-1 z-40"
@@ -1223,7 +1223,7 @@
       </div>
     );
 
-    /** Scenario definitions — nudge content + chat script when tapped.
+    /** Scenario definitions - nudge content + chat script when tapped.
      *  The first entry is a special "user-initiated" mode: no nudge fires,
      *  chat opens straight to the Welcome screen (as if the user tapped the FAB). */
     const SCENARIOS = [
@@ -1245,8 +1245,8 @@
         },
         entryLine: 'Opened from a school clinic payment request notification.',
         chatScript: [
-          { role: 'ai', text: "Nurse M. Otieno at **Kisima School Clinic** sent this — a payment request for **Kimathi**. He bumped his knee at school; the clinic gave him a bandage and antiseptic. Total **KES 850**." },
-          { role: 'ai', text: 'Your **Care Fund** has **KES 2,050** — enough to cover this without touching M-Pesa at all.' },
+          { role: 'ai', text: "Nurse M. Otieno at **Kisima School Clinic** sent this - a payment request for **Kimathi**. He bumped his knee at school; the clinic gave him a bandage and antiseptic. Total **KES 850**." },
+          { role: 'ai', text: 'Your **Care Fund** has **KES 2,050** - enough to cover this without touching M-Pesa at all.' },
           { role: 'ai', text: 'Please review before we send:' },
           {
             role: 'card',
@@ -1264,7 +1264,7 @@
               secondary: 'Split with M-Pesa',
             },
           },
-          { role: 'ai', text: 'Done. No M-Pesa PIN needed — the money moved inside Jireh.' },
+          { role: 'ai', text: 'Done. No M-Pesa PIN needed - the money moved inside Jireh.' },
           {
             role: 'ai',
             pill: 'Paid',
@@ -1285,12 +1285,12 @@
         },
         entryLine: 'Opened from a Circle invite suggestion.',
         chatScript: [
-          { role: 'ai', text: "You paid **Grace Wanjiru's** Kisima bill last month — KES 3,200. Adding her to your Circle means she can help you when a bill hits you at a bad time. Same for you helping her." },
-          { role: 'ai', text: 'Here are 2 SMS drafts for Grace — pick one:' },
+          { role: 'ai', text: "You paid **Grace Wanjiru's** Kisima bill last month - KES 3,200. Adding her to your Circle means she can help you when a bill hits you at a bad time. Same for you helping her." },
+          { role: 'ai', text: 'Here are 2 SMS drafts for Grace - pick one:' },
           {
             role: 'ai',
             bullets: [
-              "**Warm:** *Mama, I've added you to my Jireh Circle. Now we can help each other with hospital bills — like when I helped you with Kisima. Set up in 2 min: [link]*",
+              "**Warm:** *Mama, I've added you to my Jireh Circle. Now we can help each other with hospital bills - like when I helped you with Kisima. Set up in 2 min: [link]*",
               "**Simple:** *Grace, I've added you to my Jireh Circle. Sign up here so we can share care: [link]*",
             ],
           },
@@ -1327,15 +1327,15 @@
         nudgeContent: { label: 'Something worth knowing' },
         entryLine: 'Opened from a subtle FAB hint.',
         chatScript: [
-          { role: 'ai', text: "Habari Njeri. You've paid **3 bills solo** this quarter — no PayLink share, no family help. Want a quick look at what having a Circle would actually do for you?" },
+          { role: 'ai', text: "Habari Amani. You've paid **3 bills solo** this quarter - no PayLink share, no family help. Want a quick look at what having a Circle would actually do for you?" },
           { role: 'user', text: 'Show me' },
           { role: 'ai', text: 'In your case, a Circle would let you:' },
           {
             role: 'ai',
             bullets: [
-              '**Split bills** — send a PayLink to family who can cover part of a big bill',
-              '**Share Care Fund** — you or family can gift some balance to each other',
-              '**Emergency backup** — when M-Pesa runs low mid-month, family can PayLink you directly',
+              '**Split bills** - send a PayLink to family who can cover part of a big bill',
+              '**Share Care Fund** - you or family can gift some balance to each other',
+              '**Emergency backup** - when M-Pesa runs low mid-month, family can PayLink you directly',
             ],
           },
           { role: 'ai', text: 'The 3 bills you paid alone this quarter totalled **KES 12,700** out of pocket. Even one family member could have covered part of that.' },
@@ -1374,9 +1374,9 @@
         },
         entryLine: 'Opened right after a 0% loan disbursed.',
         chatScript: [
-          { role: 'ai', text: 'The **KES 5,000** is in your M-Pesa. Quick thought for next time — if you had a Circle, you might not have needed the loan at all. Family could have PayLinked you the same amount, no repayment schedule needed.' },
+          { role: 'ai', text: 'The **KES 5,000** is in your M-Pesa. Quick thought for next time - if you had a Circle, you might not have needed the loan at all. Family could have PayLinked you the same amount, no repayment schedule needed.' },
           { role: 'ai', text: 'Adding one person is enough to have a backup. Who comes to mind?' },
-          { role: 'user', text: 'David — my brother' },
+          { role: 'user', text: 'David - my brother' },
           { role: 'ai', text: 'Draft ready for David:' },
           {
             role: 'card',
@@ -1407,19 +1407,19 @@
         section: 'Partner user',
         visualPattern: 'B',
         nudgeContent: {
-          text: 'Your **Care Fund** grew **KES 850** this quarter — all from partner facility visits. Nice.',
+          text: 'Your **Care Fund** grew **KES 850** this quarter - all from partner facility visits. Nice.',
           primaryLabel: 'See breakdown',
           secondaryLabel: 'Later',
         },
         entryLine: 'Opened from a cashback recap suggestion.',
         chatScript: [
-          { role: 'ai', text: "Nice work — you earned **KES 850 in cashback this quarter**, all from partner visits. Here's how:" },
+          { role: 'ai', text: "Nice work - you earned **KES 850 in cashback this quarter**, all from partner visits. Here's how:" },
           {
             role: 'ai',
             bullets: [
-              '**Kisima Hospital** — 3 visits, KES 4,500 total, earned **KES 225**',
-              '**Uzima Rehab** — 2 visits, KES 3,800 total, earned **KES 190**',
-              '**Kisima School Clinic** (Kimathi) — 5 visits, KES 8,700 total, earned **KES 435**',
+              '**Kisima Hospital** - 3 visits, KES 4,500 total, earned **KES 225**',
+              '**Uzima Rehab** - 2 visits, KES 3,800 total, earned **KES 190**',
+              '**Kisima School Clinic** (Kimathi) - 5 visits, KES 8,700 total, earned **KES 435**',
             ],
           },
           { role: 'ai', text: 'Your total **Care Fund** is now **KES 2,050**. What next?' },
@@ -1458,8 +1458,8 @@
         },
         entryLine: 'Opened from a non-partner spend insight.',
         chatScript: [
-          { role: 'ai', text: "Kilimani Medical isn't a Jireh partner — you paid **KES 4,500** out of pocket and earned nothing back." },
-          { role: 'ai', text: "**Kisima Hospital** is 500m further, offers the same physio, and gives you **5% cashback**. On that same bill, you'd have earned **KES 225** — enough to cover part of your next visit." },
+          { role: 'ai', text: "Kilimani Medical isn't a Jireh partner - you paid **KES 4,500** out of pocket and earned nothing back." },
+          { role: 'ai', text: "**Kisima Hospital** is 500m further, offers the same physio, and gives you **5% cashback**. On that same bill, you'd have earned **KES 225** - enough to cover part of your next visit." },
           { role: 'ai', text: "Want me to set Kisima as your preferred for physio? I'll flag partners first next time you need care." },
           { role: 'user', text: 'Yes, set Kisima' },
           { role: 'ai', text: 'Please review:' },
@@ -1492,7 +1492,7 @@
         section: 'Partner user',
         visualPattern: 'C',
         nudgeContent: {
-          text: '**Kisima** has 15% off physio through Nov — you\'ve had 2 physio visits there this year.',
+          text: '**Kisima** has 15% off physio through Nov - you\'ve had 2 physio visits there this year.',
           subtitle: 'Save it for your next visit?',
           ctaLabel: 'Save it',
         },
@@ -1529,7 +1529,7 @@
       },
     ];
 
-    /** Patient dashboard — matches Figma node 4553:3806 (Jireh Patients Web App
+    /** Patient dashboard - matches Figma node 4553:3806 (Jireh Patients Web App
      *  home tab). Sections: header → search → category chips → gradient card
      *  carousel (Cashback + Loans) → action pills → Discounts & Offers row →
      *  fixed bottom "Pay Medical Bill" CTA → 4-tab bar. FAB above the CTA. */
@@ -1720,7 +1720,7 @@
             </div>
           </div>
 
-          {/* ── Pay Medical Bill — primary CTA (opens pay-bill chat) ─────── */}
+          {/* ── Pay Medical Bill - primary CTA (opens pay-bill chat) ─────── */}
           <div className="absolute bottom-14 left-0 right-0 px-4 pb-2 z-20">
             <button
               onClick={() => onSelectJob(jobById('pay-bill'))}
@@ -1734,7 +1734,7 @@
             </button>
           </div>
 
-          {/* ── Ask Jireh FAB — circular, above the CTA on the right ─────── */}
+          {/* ── Ask Jireh FAB - circular, above the CTA on the right ─────── */}
           <div
             className="absolute z-30"
             style={{ bottom: '108px', right: '14px' }}
@@ -1800,7 +1800,7 @@
       );
     };
 
-    /** Wavy background decoration behind the welcome logo — purple + teal blend. */
+    /** Wavy background decoration behind the welcome logo - purple + teal blend. */
     const WavesBackground = () => (
       <svg
         className="absolute top-2 left-0 right-0 w-full pointer-events-none"
@@ -1898,7 +1898,7 @@
     );
 
     /**
-     * Disclaimer info-chip — mirrors the info-box style used at
+     * Disclaimer info-chip - mirrors the info-box style used at
      * jireh-core-client/src/Routes/Patient/Pages/Onboarding/
      *   PatientManualIdVerificationSubmitted.tsx (line 31):
      *   "border border-emerald-200 bg-emerald-50 ... text-emerald-800"
@@ -1921,7 +1921,7 @@
     );
 
     /**
-     * PaidPill — mirrors healthcare-portal's PaymentRequestStatusBadge (line 10):
+     * PaidPill - mirrors healthcare-portal's PaymentRequestStatusBadge (line 10):
      *   [PaymentRequestStatus.Paid]: "bg-teal-100 text-teal-700"
      * When we implement the real feature, drop the same Tailwind classes on a Badge.
      */
@@ -1987,7 +1987,7 @@
     );
 
     /**
-     * Inline amount picker — activates when a chip has `next: 'amount-input'`.
+     * Inline amount picker - activates when a chip has `next: 'amount-input'`.
      * Type a number, press Enter or tap Send. Value becomes a user bubble.
      */
     const AmountInput = ({ hint, onSubmit }) => {
@@ -2091,7 +2091,7 @@
              style={{ background: 'linear-gradient(180deg, #FDFAFF 0%, #F8F0FF 100%)' }}>
           <WavesBackground />
 
-          {/* Close X top-left — return to dashboard */}
+          {/* Close X top-left - return to dashboard */}
           {onCloseChat && (
             <button
               onClick={onCloseChat}
@@ -2133,7 +2133,7 @@
               </div>
             </div>
 
-            {/* Search input (decorative — chips below drive the interaction) */}
+            {/* Search input (decorative - chips below drive the interaction) */}
             <div className="mt-5 w-full">
               <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2.5 shadow-sm">
                 <input
@@ -2274,7 +2274,7 @@
           // Stub jobs: one AI message + terminal
           const timer = setTimeout(() => {
             setVisible([
-              { role: 'ai', text: `Here's how **${t(activeJob.title, lang)}** would work — this branch would continue in the full product.` },
+              { role: 'ai', text: `Here's how **${t(activeJob.title, lang)}** would work - this branch would continue in the full product.` },
             ]);
           }, 300);
           return () => clearTimeout(timer);
@@ -2346,8 +2346,8 @@
       const handleAmountSubmit = (amount) => {
         const formatted = amount.toLocaleString();
         const acceptedCopy = lang === 'EN'
-          ? `Got it — **KES ${formatted}**. In the full product I'd carry this amount through to the confirmation card.`
-          : `Nimeelewa — **KES ${formatted}**. Katika bidhaa kamili ningebeba kiasi hiki hadi kwenye kadi ya uthibitisho.`;
+          ? `Got it - **KES ${formatted}**. In the full product I'd carry this amount through to the confirmation card.`
+          : `Nimeelewa - **KES ${formatted}**. Katika bidhaa kamili ningebeba kiasi hiki hadi kwenye kadi ya uthibitisho.`;
         setVisible([
           ...visible.filter((m) => m.role !== 'amount-input'),
           { role: 'user', text: `KES ${formatted}`, key: `amt-user-${Date.now()}` },
@@ -2428,7 +2428,7 @@
             <div className="w-8" aria-hidden />
           </div>
 
-          {/* Entry line — shows why the chat opened (scenario-driven only) */}
+          {/* Entry line - shows why the chat opened (scenario-driven only) */}
           {activeScenario && (
             <div
               className="mx-4 mt-2.5 px-3 py-1.5 rounded-lg text-[11px] fade-in flex items-start gap-1.5 flex-shrink-0"
@@ -2564,7 +2564,7 @@
       const [chatOpen, setChatOpen] = useState(false);
       const [resetKey, setResetKey] = useState(0);
 
-      // v3 additions — proactive nudge state
+      // v3 additions - proactive nudge state
       const [currentScenarioId, setCurrentScenarioId] = useState(SCENARIOS[0].id);
       const [nudgeVisible, setNudgeVisible] = useState(false);
       const [activeScenario, setActiveScenario] = useState(null);
@@ -2597,7 +2597,7 @@
       }, []);
 
       const openChat = () => {
-        // User tapped FAB — open welcome screen (no scenario, no job)
+        // User tapped FAB - open welcome screen (no scenario, no job)
         setChatOpen(true);
         setActiveJob(null);
         setActiveScenario(null);
@@ -2676,7 +2676,7 @@
               <div className="w-[380px] flex flex-col">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Demo controls</h2>
                 <p className="text-sm text-gray-600 mb-5 leading-relaxed">
-                  Pick a proactive nudge scenario. Wait ~1.4 s for it to appear on the phone, then tap it to run the chat flow — or tap the <strong>Ask Jireh</strong> FAB to open the assistant on your own (Welcome screen with 8 jobs).
+                  Pick a proactive nudge scenario. Wait ~1.4 s for it to appear on the phone, then tap it to run the chat flow - or tap the <strong>Ask Jireh</strong> FAB to open the assistant on your own (Welcome screen with 8 jobs).
                 </p>
 
                 <div className="space-y-4 flex-1">
@@ -2717,7 +2717,7 @@
                                 </div>
                                 <div className="text-[10px] text-gray-500 mt-0.5">
                                   {isWelcome ? (
-                                    <span className="italic">No trigger — Welcome screen with 8 jobs</span>
+                                    <span className="italic">No trigger - Welcome screen with 8 jobs</span>
                                   ) : (
                                     <>
                                       Pattern: <span className="font-medium text-gray-700">
@@ -2755,9 +2755,6 @@
               </div>
             </div>
 
-            <div className="max-w-6xl mx-auto mt-8 text-center text-xs text-gray-500">
-              {CONFIG.strings[lang].footerCredit}
-            </div>
           </div>
         </div>
       );
